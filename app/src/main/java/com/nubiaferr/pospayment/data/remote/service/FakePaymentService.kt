@@ -12,7 +12,7 @@ import javax.inject.Inject
  * Simulates realistic network latency and returns synthetic acquirer responses
  * based solely on the business rules already enforced by the domain strategies.
  *
- * Swap this for [PaymentService] in [com.btg.pos.data.di.NetworkModule] once a
+ * Swap this for [PaymentService] in [NetworkModule] once a
  * real acquirer API is available — no other class needs to change.
  *
  * Behaviour:
