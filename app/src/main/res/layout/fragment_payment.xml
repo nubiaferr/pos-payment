@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <!-- Valor -->
+    <EditText
+        android:id="@+id/etAmount"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="Amount"
+        android:inputType="numberDecimal"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Parcelas -->
+    <EditText
+        android:id="@+id/etInstallments"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="Installments"
+        android:inputType="number"
+        app:layout_constraintTop_toBottomOf="@id/etAmount"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp"/>
+
+    <!-- Botões de pagamento -->
+    <LinearLayout
+        android:id="@+id/groupPaymentButtons"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/etInstallments"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <Button
+            android:id="@+id/btnCredit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Credit"/>
+
+        <Button
+            android:id="@+id/btnDebit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Debit"/>
+
+        <Button
+            android:id="@+id/btnPix"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Pix"/>
+
+        <Button
+            android:id="@+id/btnVoucher"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Voucher"/>
+    </LinearLayout>
+
+    <!-- Loading -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/groupPaymentButtons"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Aguardando cartão -->
+    <TextView
+        android:id="@+id/tvAwaitingCard"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Insert or tap your card..."
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/progressBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Erro -->
+    <LinearLayout
+        android:id="@+id/groupError"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/tvAwaitingCard"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tvErrorMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Error message"
+            android:textColor="@android:color/holo_red_dark"/>
+
+        <Button
+            android:id="@+id/btnRetry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Retry"/>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
