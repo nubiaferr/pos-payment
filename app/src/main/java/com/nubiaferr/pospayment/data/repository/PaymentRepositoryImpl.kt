@@ -3,6 +3,7 @@ package com.nubiaferr.pospayment.data.repository
 import com.nubiaferr.pospayment.data.local.dao.PaymentDao
 import com.nubiaferr.pospayment.data.local.entity.TransactionEntity
 import com.nubiaferr.pospayment.data.mapper.PaymentDataMapper
+import com.nubiaferr.pospayment.data.remote.service.FakePaymentService
 import com.nubiaferr.pospayment.data.remote.service.PaymentService
 import com.nubiaferr.pospayment.domain.exception.TransactionNotCancellableException
 import com.nubiaferr.pospayment.domain.model.Payment
@@ -25,7 +26,7 @@ import javax.inject.Inject
  * @property mapper  Converts between DTOs and domain entities.
  */
 class PaymentRepositoryImpl @Inject constructor(
-    private val service: PaymentService,
+    private val service: FakePaymentService,
     private val dao: PaymentDao,
     private val mapper: PaymentDataMapper
 ) : PaymentRepository {
