@@ -1,62 +1,254 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:background="@color/background_screen"
+    tools:context=".presentation.fragment.ReceiptFragment">
 
-    <LinearLayout
+    <!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:backgroundTint="@color/surface"
+        app:elevation="0dp">
 
-        <TextView
-            android:id="@+id/tvAmount"
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Comprovante"
+            app:titleTextColor="@color/on_surface"
+            app:titleTextAppearance="@style/TextAppearance.App.Toolbar"
+            app:navigationIcon="@drawable/ic_close"
+            app:navigationIconTint="@color/on_surface" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- ── Scrollable content ──────────────────────────────────────────────── -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:fillViewport="true"
+        android:overScrollMode="never">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Amount" />
+            android:orientation="vertical"
+            android:padding="24dp">
 
-        <TextView
-            android:id="@+id/tvMethod"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Method" />
+            <!-- ── Success badge ──────────────────────────────────────────── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingTop="8dp"
+                android:paddingBottom="24dp">
 
-        <TextView
-            android:id="@+id/tvInstalments"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Installments" />
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    app:cardCornerRadius="36dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@color/success_container">
 
-        <TextView
-            android:id="@+id/tvAuthCode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Auth Code" />
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_check"
+                        app:tint="@color/success" />
 
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Status" />
+                </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:id="@+id/tvDate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Date" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Pagamento aprovado"
+                    android:textColor="@color/on_surface"
+                    android:textSize="20sp"
+                    />
 
-        <TextView
-            android:id="@+id/tvTransactionId"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Transaction ID" />
+                <TextView
+                    android:id="@+id/tv_amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textSize="32sp"
+                    android:textColor="@color/primary"
+                    tools:text="R$ 150,00" />
 
-        <Button
-            android:id="@+id/btnNewPayment"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="New Payment" />
+            </LinearLayout>
 
-    </LinearLayout>
-</ScrollView>
+            <!-- ── Transaction details card ───────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/stroke"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <!-- Row helper macro: label + value -->
+
+                    <!-- Method -->
+                    <LinearLayout style="@style/ReceiptRow">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Forma de pagamento"
+                            style="@style/ReceiptLabel" />
+                        <TextView
+                            android:id="@+id/tv_method"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            style="@style/ReceiptValue"
+                            tools:text="Crédito" />
+                    </LinearLayout>
+
+                    <View style="@style/Divider" />
+
+                    <!-- Instalments — hidden when empty -->
+                    <LinearLayout
+                        android:id="@+id/row_instalments"
+                        style="@style/ReceiptRow">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Parcelas"
+                            style="@style/ReceiptLabel" />
+                        <TextView
+                            android:id="@+id/tv_instalments"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            style="@style/ReceiptValue"
+                            tools:text="3x de R$ 50,00" />
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/divider_instalments"
+                        style="@style/Divider" />
+
+                    <!-- Status -->
+                    <LinearLayout style="@style/ReceiptRow">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Status"
+                            style="@style/ReceiptLabel" />
+                        <TextView
+                            android:id="@+id/tv_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            style="@style/ReceiptValue"
+                            tools:text="Aprovado" />
+                    </LinearLayout>
+
+                    <View style="@style/Divider" />
+
+                    <!-- Auth code -->
+                    <LinearLayout style="@style/ReceiptRow">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Autorização"
+                            style="@style/ReceiptLabel" />
+                        <TextView
+                            android:id="@+id/tv_auth_code"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            style="@style/ReceiptValue"
+                            tools:text="AUTH-482910" />
+                    </LinearLayout>
+
+                    <View style="@style/Divider" />
+
+                    <!-- Date -->
+                    <LinearLayout style="@style/ReceiptRow">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Data e hora"
+                            style="@style/ReceiptLabel" />
+                        <TextView
+                            android:id="@+id/tv_date"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            style="@style/ReceiptValue"
+                            tools:text="28/03/2025 14:32" />
+                    </LinearLayout>
+
+                    <View style="@style/Divider" />
+
+                    <!-- Transaction ID -->
+                    <LinearLayout style="@style/ReceiptRow">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="ID da transação"
+                            style="@style/ReceiptLabel" />
+                        <TextView
+                            android:id="@+id/tv_transaction_id"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:maxWidth="160dp"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+
+                            style="@style/ReceiptValue"
+                            tools:text="a1b2c3d4-e5f6" />
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── New payment button ─────────────────────────────────────── -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_new_payment"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="24dp"
+                android:text="Novo pagamento"
+                android:textSize="15sp"
+
+                app:cornerRadius="12dp"
+                style="@style/Widget.MaterialComponents.Button" />
+
+            <!-- ── Cancel transaction button ──────────────────────────────── -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_cancel_transaction"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Cancelar esta transação"
+                android:textSize="14sp"
+                android:textColor="@color/error"
+                app:rippleColor="@color/error_container"
+                app:cornerRadius="12dp"
+                style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

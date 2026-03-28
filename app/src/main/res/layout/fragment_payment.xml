@@ -1,116 +1,331 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:background="@color/background_screen"
+    tools:context=".presentation.fragment.PaymentFragment">
 
-    <!-- Valor -->
-    <EditText
-        android:id="@+id/etAmount"
-        android:layout_width="0dp"
+    <!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="50dp"
-        android:hint="Amount"
-        android:inputType="numberDecimal"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        android:backgroundTint="@color/surface"
+        app:elevation="0dp">
 
-    <!-- Parcelas -->
-    <EditText
-        android:id="@+id/etInstallments"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="Installments"
-        android:inputType="number"
-        app:layout_constraintTop_toBottomOf="@id/etAmount"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp"/>
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Novo Pagamento"
+            app:titleTextColor="@color/on_surface"
+            app:titleTextAppearance="@style/TextAppearance.App.Toolbar" />
 
-    <!-- Botões de pagamento -->
-    <LinearLayout
-        android:id="@+id/groupPaymentButtons"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/etInstallments"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+    </com.google.android.material.appbar.AppBarLayout>
 
-        <Button
-            android:id="@+id/btnCredit"
+    <!-- ── Scrollable content ──────────────────────────────────────────────── -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:fillViewport="true"
+        android:overScrollMode="never">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Credit"/>
+            android:padding="24dp">
 
-        <Button
-            android:id="@+id/btnDebit"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Debit"/>
+            <!-- ── Amount input card ──────────────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_amount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/stroke"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="@color/surface"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
-            android:id="@+id/btnPix"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Pix"/>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
 
-        <Button
-            android:id="@+id/btnVoucher"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Voucher"/>
-    </LinearLayout>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Valor"
+                        android:textColor="@color/on_surface_variant"
+                        android:textSize="12sp"
+                        android:letterSpacing="0.05"
+                        android:textAllCaps="true"
+                        />
 
-    <!-- Loading -->
-    <ProgressBar
-        android:id="@+id/progressBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/groupPaymentButtons"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_amount"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:boxStrokeColor="@color/primary"
+                        app:hintTextColor="@color/on_surface_variant"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-    <!-- Aguardando cartão -->
-    <TextView
-        android:id="@+id/tvAwaitingCard"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Insert or tap your card..."
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/progressBar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_amount"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="R$ 0,00"
+                            android:inputType="numberDecimal"
+                            android:textSize="28sp"
+                            android:textColor="@color/on_surface"
 
-    <!-- Erro -->
-    <LinearLayout
-        android:id="@+id/groupError"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/tvAwaitingCard"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+                            android:paddingTop="12dp"
+                            android:paddingBottom="12dp" />
 
-        <TextView
-            android:id="@+id/tvErrorMessage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Error message"
-            android:textColor="@android:color/holo_red_dark"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
-        <Button
-            android:id="@+id/btnRetry"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Retry"/>
-    </LinearLayout>
+                    <!-- Instalments row — visible only for credit -->
+                    <LinearLayout
+                        android:id="@+id/layout_installments"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="16dp"
+                        android:gravity="center_vertical"
+                        android:visibility="gone">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Parcelas"
+                            android:textColor="@color/on_surface_variant"
+                            android:textSize="14sp" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_installments"
+                            android:layout_width="100dp"
+                            android:layout_height="wrap_content"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_installments"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:hint="1"
+                                android:inputType="number"
+                                android:textSize="16sp"
+                                android:textColor="@color/on_surface"
+                                android:gravity="center" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Payment method label ───────────────────────────────────── -->
+            <TextView
+                android:id="@+id/tv_method_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Forma de pagamento"
+                android:textColor="@color/on_surface_variant"
+                android:textSize="12sp"
+                android:letterSpacing="0.05"
+                android:textAllCaps="true"
+                android:layout_marginTop="24dp"
+                app:layout_constraintTop_toBottomOf="@id/card_amount"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <!-- ── Payment method buttons ─────────────────────────────────── -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/group_payment_buttons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:layout_constraintTop_toBottomOf="@id/tv_method_label"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <!-- Row 1: Credit + Debit -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_credit"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:text="Crédito"
+                    android:textSize="15sp"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="@color/primary"
+                    app:strokeWidth="1dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/btn_debit"
+                    android:layout_marginEnd="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_debit"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:text="Débito"
+                    android:textSize="15sp"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="@color/primary"
+                    app:strokeWidth="1dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/btn_credit"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Row 2: Pix + Voucher -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_pix"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:text="Pix"
+                    android:textSize="15sp"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="@color/primary"
+                    app:strokeWidth="1dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_marginTop="10dp"
+                    app:layout_constraintTop_toBottomOf="@id/btn_credit"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/btn_voucher"
+                    android:layout_marginEnd="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_voucher"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:text="Voucher"
+                    android:textSize="15sp"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="@color/primary"
+                    app:strokeWidth="1dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_marginTop="10dp"
+                    app:layout_constraintTop_toBottomOf="@id/btn_debit"
+                    app:layout_constraintStart_toEndOf="@id/btn_pix"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- ── Loading state ──────────────────────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/layout_loading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginTop="48dp"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/group_payment_buttons"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <com.google.android.material.progressindicator.CircularProgressIndicator
+                    android:id="@+id/progress_bar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:indicatorColor="@color/primary"
+                    app:trackColor="@color/stroke"
+                    app:trackThickness="4dp"
+                    android:indeterminate="true" />
+
+                <TextView
+                    android:id="@+id/tv_loading_message"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Processando pagamento…"
+                    android:textColor="@color/on_surface_variant"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+            <!-- ── Error state ────────────────────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_error"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:visibility="gone"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/error"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="@color/error_container"
+                app:layout_constraintTop_toBottomOf="@id/layout_loading"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            app:tint="@color/error"
+                            android:importantForAccessibility="no" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="Pagamento não processado"
+                            android:textColor="@color/error"
+                            android:textSize="14sp"
+                            />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_error_message"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:textColor="@color/on_error_container"
+                        android:textSize="13sp"
+                        android:lineSpacingMultiplier="1.4"
+                        tools:text="Parcelamento indisponível abaixo de R$10,00." />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_retry"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="Tentar novamente"
+                        android:textSize="13sp"
+                        app:cornerRadius="8dp"
+                        style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

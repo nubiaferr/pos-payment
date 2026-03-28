@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Brand -->
+    <color name="primary">#1B6CA8</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#D6E4F7</color>
+
+    <!-- Surface -->
+    <color name="surface">#FFFFFF</color>
+    <color name="on_surface">#1A1A1A</color>
+    <color name="on_surface_variant">#6B7280</color>
+    <color name="background_screen">#F4F6F9</color>
+    <color name="stroke">#E5E7EB</color>
+
+    <!-- Semantic -->
+    <color name="success">#1D9E75</color>
+    <color name="success_container">#E1F5EE</color>
+    <color name="error">#DC2626</color>
+    <color name="error_container">#FEF2F2</color>
+    <color name="on_error_container">#7F1D1D</color>
 </resources>
