@@ -50,7 +50,11 @@ dependencies {
     implementation(libs.retrofit.converter.gson)
 
     implementation(libs.hilt.android)
-    kapt("com.google.dagger:hilt-compiler:2.50.0")
+    kapt(libs.hilt.compiler)
+
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.runtime)
+    kapt(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
