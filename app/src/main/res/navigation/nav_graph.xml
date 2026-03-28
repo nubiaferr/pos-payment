@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/paymentFragment">
+
+    <fragment
+        android:id="@+id/paymentFragment"
+        android:name="com.nubiaferr.pospayment.presentation.fragment.PaymentFragment"
+        android:label="Payment">
+
+        <action
+            android:id="@+id/action_paymentFragment_to_receiptFragment"
+            app:destination="@id/receiptFragment">
+
+            <argument
+                android:name="transaction"
+                app:argType="com.nubiaferr.pospayment.presentation.model.TransactionUiModel" />
+        </action>
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/receiptFragment"
+        android:name="com.nubiaferr.pospayment.presentation.fragment.ReceiptFragment"
+        android:label="Receipt">
+
+        <argument
+            android:name="transaction"
+            app:argType="com.nubiaferr.pospayment.presentation.model.TransactionUiModel" />
+    </fragment>
+
+</navigation>
