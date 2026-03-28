@@ -5,6 +5,7 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.nubiaferr.pospayment.databinding.FragmentReceiptBinding
@@ -36,20 +37,35 @@ class ReceiptFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         bindReceipt()
-        binding.btnNewPayment.setOnClickListener {
-            findNavController().popBackStack()
-        }
+        setupClickListeners()
     }
 
     private fun bindReceipt() {
         with(args.transaction) {
             binding.tvAmount.text = formattedAmount
             binding.tvMethod.text = methodLabel
-            binding.tvInstalments.text = instalments
-            binding.tvAuthCode.text = authCode
             binding.tvStatus.text = statusLabel
+            binding.tvAuthCode.text = authCode
             binding.tvDate.text = formattedDate
             binding.tvTransactionId.text = id
+
+            // Hide instalment row when payment is single charge
+            val hasInstalments = instalments.isNotBlank()
+            binding.rowInstalments.isVisible = hasInstalments
+            binding.dividerInstalments.isVisible = hasInstalments
+            if (hasInstalments) binding.tvInstalments.text = instalments
+        }
+    }
+
+    private fun setupClickListeners() {
+        binding.toolbar.setNavigationOnClickListener {
+            findNavController().popBackStack()
+        }
+        binding.btnNewPayment.setOnClickListener {
+            findNavController().popBackStack()
+        }
+        binding.btnCancelTransaction.setOnClickListener {
+            findNavController().popBackStack()
         }
     }
 

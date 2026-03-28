@@ -21,12 +21,12 @@ import kotlinx.coroutines.launch
 /**
  * Entry screen for the POS payment flow.
  *
- * Responsibilities (and only these):
- * - Render each [PaymentUiState] emitted by [PaymentViewModel].
- * - Forward user interactions (button taps, input values) to the ViewModel.
- * - Navigate to [ReceiptFragment] on success.
+ * Two-step UX:
+ * 1. Operator enters the amount and taps a payment method button to select it.
+ *    Selecting Credit reveals the instalment field. No payment is triggered yet.
+ * 2. Operator taps "Confirmar pagamento" to submit.
  *
- * No business logic lives here.
+ * Inputs are cleared automatically whenever the screen returns to Idle.
  */
 @AndroidEntryPoint
 class PaymentFragment : Fragment() {
@@ -35,6 +35,8 @@ class PaymentFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: PaymentViewModel by viewModels()
+
+    private var selectedMethod: PaymentMethod? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -56,11 +58,11 @@ class PaymentFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     when (state) {
-                        is PaymentUiState.Idle -> showIdle()
-                        is PaymentUiState.Loading -> showLoading()
+                        is PaymentUiState.Idle         -> showIdle()
+                        is PaymentUiState.Loading      -> showLoading()
                         is PaymentUiState.AwaitingCard -> showAwaitingCard()
-                        is PaymentUiState.Success -> navigateToReceipt(state)
-                        is PaymentUiState.Error -> showError(state)
+                        is PaymentUiState.Success      -> navigateToReceipt(state)
+                        is PaymentUiState.Error        -> showError(state)
                     }
                 }
             }
@@ -68,49 +70,99 @@ class PaymentFragment : Fragment() {
     }
 
     private fun setupClickListeners() {
-        binding.btnCredit.setOnClickListener { submitPayment(PaymentMethod.CREDIT) }
-        binding.btnDebit.setOnClickListener { submitPayment(PaymentMethod.DEBIT) }
-        binding.btnPix.setOnClickListener { submitPayment(PaymentMethod.PIX) }
-        binding.btnVoucher.setOnClickListener { submitPayment(PaymentMethod.VOUCHER) }
-        binding.btnRetry.setOnClickListener { viewModel.resetState() }
+        // Method selection — just updates UI, does NOT submit
+        binding.btnCredit.setOnClickListener  { selectMethod(PaymentMethod.CREDIT) }
+        binding.btnDebit.setOnClickListener   { selectMethod(PaymentMethod.DEBIT) }
+        binding.btnPix.setOnClickListener     { selectMethod(PaymentMethod.PIX) }
+        binding.btnVoucher.setOnClickListener { selectMethod(PaymentMethod.VOUCHER) }
+
+        // Confirm button — submits the payment
+        binding.btnConfirm.setOnClickListener { submitPayment() }
+
+        binding.btnRetry.setOnClickListener {
+            clearInputs()
+            viewModel.resetState()
+        }
     }
 
-    private fun submitPayment(method: PaymentMethod) {
-        val amountText = binding.etAmount.text?.toString()
-        val amount = amountText?.toDoubleOrNull() ?: return
-        val installments = binding.etInstallments.text?.toString()?.toIntOrNull() ?: 1
+    private fun selectMethod(method: PaymentMethod) {
+        selectedMethod = method
+
+        // Highlight the selected button, reset the others
+        val buttons = listOf(
+            PaymentMethod.CREDIT  to binding.btnCredit,
+            PaymentMethod.DEBIT   to binding.btnDebit,
+            PaymentMethod.PIX     to binding.btnPix,
+            PaymentMethod.VOUCHER to binding.btnVoucher,
+        )
+        buttons.forEach { (m, btn) ->
+            btn.isSelected = (m == method)
+        }
+
+        // Show instalment field only for credit
+        val isCredit = method == PaymentMethod.CREDIT
+        binding.layoutInstallments.isVisible = isCredit
+        if (!isCredit) binding.etInstallments.text?.clear()
+
+        // Reveal the confirm button once a method is chosen
+        binding.btnConfirm.isVisible = true
+    }
+
+    private fun submitPayment() {
+        val method = selectedMethod ?: return
+
+        val amount = binding.etAmount.text?.toString()?.toDoubleOrNull()
+        if (amount == null || amount <= 0) {
+            binding.tilAmount.error = "Informe um valor válido"
+            return
+        }
+        binding.tilAmount.error = null
+
+        val installments = binding.etInstallments.text
+            ?.toString()
+            ?.toIntOrNull()
+            ?.coerceAtLeast(1)
+            ?: 1
+
         viewModel.processPayment(
             amount = amount,
             method = method,
             installments = installments
         )
+
+        binding.btnConfirm.isVisible = false
     }
 
+    // ── State renderers ────────────────────────────────────────────────────────
+
     private fun showIdle() {
-        binding.progressBar.isVisible = false
+        binding.cardAmount.isVisible = true
         binding.groupPaymentButtons.isVisible = true
-        binding.groupError.isVisible = false
-        binding.tvAwaitingCard.isVisible = false
+        binding.layoutLoading.isVisible = false
+        binding.cardError.isVisible = false
     }
 
     private fun showLoading() {
-        binding.progressBar.isVisible = true
+        binding.tvLoadingMessage.text = "Processando pagamento…"
+        binding.layoutLoading.isVisible = true
+        binding.cardAmount.isVisible = false
         binding.groupPaymentButtons.isVisible = false
-        binding.groupError.isVisible = false
-        binding.tvAwaitingCard.isVisible = false
+        binding.cardError.isVisible = false
     }
 
     private fun showAwaitingCard() {
-        binding.progressBar.isVisible = false
-        binding.tvAwaitingCard.isVisible = true
+        binding.tvLoadingMessage.text = "Aguardando o cartão…"
+        binding.layoutLoading.isVisible = true
+        binding.cardAmount.isVisible = false
         binding.groupPaymentButtons.isVisible = false
     }
 
     private fun showError(state: PaymentUiState.Error) {
-        binding.progressBar.isVisible = false
-        binding.groupError.isVisible = true
+        binding.layoutLoading.isVisible = false
+        binding.cardError.isVisible = true
         binding.tvErrorMessage.text = state.message
         binding.groupPaymentButtons.isVisible = !state.isBusinessError
+        binding.cardAmount.isVisible = !state.isBusinessError
     }
 
     private fun navigateToReceipt(state: PaymentUiState.Success) {
@@ -118,6 +170,23 @@ class PaymentFragment : Fragment() {
             .actionPaymentFragmentToReceiptFragment(state.transaction)
         findNavController().navigate(action)
         viewModel.resetState()
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    private fun clearInputs() {
+        selectedMethod = null
+        binding.etAmount.text?.clear()
+        binding.etInstallments.text?.clear()
+        binding.tilAmount.error = null
+        binding.layoutInstallments.isVisible = false
+        binding.btnConfirm.isVisible = false
+        listOf(
+            binding.btnCredit,
+            binding.btnDebit,
+            binding.btnPix,
+            binding.btnVoucher
+        ).forEach { it.isSelected = false }
     }
 
     override fun onDestroyView() {
