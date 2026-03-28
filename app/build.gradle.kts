@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.gson)
 
     implementation(libs.hilt.android)
     kapt("com.google.dagger:hilt-compiler:2.50.0")
