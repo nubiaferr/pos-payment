@@ -1,5 +1,8 @@
 package com.nubiaferr.pospayment.presentation.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
 /**
  * UI-friendly representation of a completed transaction.
  *
@@ -14,6 +17,7 @@ package com.nubiaferr.pospayment.presentation.model
  * @property statusLabel    Localised status string (e.g. "Aprovado").
  * @property formattedDate  Date/time formatted as "dd/MM/yyyy HH:mm".
  */
+@Parcelize
 data class TransactionUiModel(
     val id: String,
     val formattedAmount: String,
@@ -22,4 +26,4 @@ data class TransactionUiModel(
     val authCode: String,
     val statusLabel: String,
     val formattedDate: String
-)
+): Parcelable
