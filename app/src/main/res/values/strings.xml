@@ -21,6 +21,7 @@
     <!-- ── Instalment input ──────────────────────────────────────────────── -->
     <string name="label_instalments">Instalments</string>
     <string name="hint_instalments_minimum">Minimum R$ 10.00 to pay in instalments</string>
+    <string name="label_instalment_breakdown">%1$dx of %2$s</string>
 
     <!-- ── Buttons ────────────────────────────────────────────────────────── -->
     <string name="btn_confirm_payment">Confirm payment</string>

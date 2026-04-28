@@ -105,7 +105,11 @@ class PaymentViewModel @Inject constructor(
                 _instalmentsError.value = null
                 _instalmentSummary.value = if (rawAmount > 0.0) {
                     val perInstalment = rawAmount / instalmentsResult.installments
-                    "${instalmentsResult.installments}x de ${currencyFormatter.format(perInstalment)}"
+                    context.getString(
+                        R.string.label_instalment_breakdown,
+                        instalmentsResult.installments,
+                        currencyFormatter.format(perInstalment)
+                    )
                 } else null
             }
         }
