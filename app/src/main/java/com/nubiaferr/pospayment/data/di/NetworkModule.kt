@@ -26,15 +26,13 @@ import javax.inject.Singleton
  * shared across the entire app lifetime.
  *
  * SWAP NOTE: To go live with a real acquirer API:
- * 1. Uncomment [providePaymentApi] and add Retrofit + PaymentApi imports.
- * 2. Replace [providePaymentService] to wrap [PaymentApi] in a real [PaymentService].
- * No other class needs to change — [PaymentRepositoryImpl] depends only on the interface.
+ * 1. Uncomment [com.nubiaferr.pospayment.data.di.NetworkModule_ProvidePaymentApiFactory.providePaymentApi] and add Retrofit + PaymentApi imports.
+ * 2. Replace [providePaymentService] to wrap [com.nubiaferr.pospayment.data.remote.service.PaymentApi] in a real [PaymentService].
+ * No other class needs to change — [com.nubiaferr.pospayment.data.repository.PaymentRepositoryImpl] depends only on the interface.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-
-    private const val BASE_URL = "https://api.btgpactual.com/pos/"
     private const val TIMEOUT_SECONDS = 30L
     private const val DB_NAME = "pos_payment.db"
 

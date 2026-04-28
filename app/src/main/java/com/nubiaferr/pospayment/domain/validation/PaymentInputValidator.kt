@@ -10,7 +10,7 @@ import javax.inject.Inject
  * method-agnostic (zero, negative, global maximum, instalment count).
  *
  * Per-method transaction limits (e.g. Pix R$ 50k, Debit R$ 10k) are
- * enforced exclusively by the corresponding [PaymentStrategy] implementation,
+ * enforced exclusively by the corresponding [com.nubiaferr.pospayment.domain.strategy.PaymentStrategy] implementation,
  * which is the single source of truth for those rules.
  *
  * Returns typed results instead of raw strings — the presentation layer

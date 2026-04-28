@@ -49,8 +49,6 @@ class PaymentUiMapper @Inject constructor() {
      * e.g. formatInstalmentSummary(12, 50.0) → "12x of R$ 50,00"
      *
      * Reuses [currencyFormatter] so the live preview and receipt are always consistent.
-     * The caller is responsible for applying the [R.string.label_instalment_breakdown]
-     * format string with the returned count and formatted amount.
      */
     fun formatInstalmentSummary(instalments: Int, amountPerInstalment: Double): String {
         val formatted = currencyFormatter.format(amountPerInstalment)

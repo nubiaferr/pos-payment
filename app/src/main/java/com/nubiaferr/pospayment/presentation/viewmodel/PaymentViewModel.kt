@@ -52,7 +52,7 @@ class PaymentViewModel @Inject constructor(
 
     /**
      * Typed instalment validation result emitted on every keystroke.
-     * [PaymentFragment] resolves this to a string via [InstalmentsValidationResult.toErrorString].
+     * [com.nubiaferr.pospayment.presentation.fragment.PaymentFragment] resolves this to a string via [InstalmentsValidationResult.toErrorString].
      * Null when valid or field is not visible.
      */
     private val _instalmentsValidation = MutableStateFlow<InstalmentsValidationResult?>(null)
@@ -60,7 +60,7 @@ class PaymentViewModel @Inject constructor(
 
     /**
      * Typed amount validation result emitted on every keystroke.
-     * [PaymentFragment] resolves this to a string via [AmountValidationResult.toErrorString].
+     * [com.nubiaferr.pospayment.presentation.fragment.PaymentFragment] resolves this to a string via [AmountValidationResult].
      * Null when valid.
      */
     private val _amountValidation = MutableStateFlow<AmountValidationResult?>(null)
@@ -111,7 +111,7 @@ class PaymentViewModel @Inject constructor(
         val instalmentsResult = validator.validateInstallments(rawInstalments)
         val hasInstalmentsError = instalmentsResult is InstalmentsValidationResult.ExceedsMax
         _instalmentsValidation.value = if (hasInstalmentsError) instalmentsResult else null
-        _instalmentSummary.value = if (!hasInstalmentsError && rawAmount > 0.0) {
+        _instalmentSummary.value = if (!hasInstalmentsError) {
             mapper.formatInstalmentSummary(
                 instalments = (instalmentsResult as InstalmentsValidationResult.Valid).installments,
                 amountPerInstalment = rawAmount / instalmentsResult.installments

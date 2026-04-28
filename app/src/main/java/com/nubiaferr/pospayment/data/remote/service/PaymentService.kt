@@ -6,7 +6,7 @@ import com.nubiaferr.pospayment.data.remote.dto.TransactionResponseDto
 /**
  * Contract for the acquirer payment service layer.
  *
- * Abstracts the data source so [PaymentRepositoryImpl] does not depend on
+ * Abstracts the data source so [com.nubiaferr.pospayment.data.repository.PaymentRepositoryImpl] does not depend on
  * whether the implementation is [FakePaymentService] (development) or a
  * real Retrofit-backed service (production).
  */
