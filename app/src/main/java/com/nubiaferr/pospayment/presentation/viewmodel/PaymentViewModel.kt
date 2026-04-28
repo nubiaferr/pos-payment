@@ -11,6 +11,8 @@ import com.nubiaferr.pospayment.domain.usecase.ProcessPaymentUseCase
 import com.nubiaferr.pospayment.presentation.mapper.PaymentUiMapper
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,26 +24,29 @@ import javax.inject.Inject
  *
  * Owns the UI state lifecycle and delegates all business operations to the
  * domain use cases. The Fragment observes [uiState] and reacts to each emission
- * without containing any logic itself.
+ * without containing any logic of its own.
  *
  * @property processPayment         Use case for initiating a payment.
  * @property cancelTransaction      Use case for reversing an approved transaction.
  * @property getTransactionStatus   Use case for polling a pending transaction.
  * @property mapper                 Converts domain entities to UI models.
+ * @property dispatcher             Coroutine dispatcher — injectable for testing.
+ *                                  Defaults to [Dispatchers.IO] in production.
  */
 @HiltViewModel
 class PaymentViewModel @Inject constructor(
     private val processPayment: ProcessPaymentUseCase,
     private val cancelTransaction: CancelTransactionUseCase,
     private val getTransactionStatus: GetTransactionStatusUseCase,
-    private val mapper: PaymentUiMapper
+    private val mapper: PaymentUiMapper,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PaymentUiState>(PaymentUiState.Idle)
 
     /**
-     * The current UI state. Collect this in the Fragment using
-     * `collectLatestWithLifecycle` to automatically respect the lifecycle.
+     * The current UI state. Collect this in the Fragment inside
+     * `repeatOnLifecycle(Lifecycle.State.STARTED)` to respect the lifecycle.
      */
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
@@ -62,7 +67,7 @@ class PaymentViewModel @Inject constructor(
         installments: Int = 1,
         description: String = ""
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(dispatcher) {
             _uiState.value = PaymentUiState.Loading
             val payment = Payment(
                 amount = amount,
@@ -90,7 +95,7 @@ class PaymentViewModel @Inject constructor(
      * @param transactionId The unique identifier of the transaction to reverse.
      */
     fun cancelPreviousTransaction(transactionId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(dispatcher) {
             _uiState.value = PaymentUiState.Loading
             cancelTransaction(transactionId).fold(
                 onSuccess = { transaction ->
@@ -113,7 +118,7 @@ class PaymentViewModel @Inject constructor(
      * @param transactionId The unique identifier of the transaction.
      */
     fun checkTransactionStatus(transactionId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(dispatcher) {
             _uiState.value = PaymentUiState.Loading
             getTransactionStatus(transactionId).fold(
                 onSuccess = { transaction ->
