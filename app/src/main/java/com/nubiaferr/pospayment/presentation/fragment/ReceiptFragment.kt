@@ -15,20 +15,14 @@ import androidx.navigation.fragment.navArgs
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nubiaferr.pospayment.R
 import com.nubiaferr.pospayment.databinding.FragmentReceiptBinding
+import com.nubiaferr.pospayment.domain.model.TransactionStatus
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
+import com.nubiaferr.pospayment.presentation.util.labelRes
+import com.nubiaferr.pospayment.presentation.util.toErrorString
 import com.nubiaferr.pospayment.presentation.viewmodel.PaymentViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
-/**
- * Displays the receipt after a successful transaction.
- *
- * Receives a [TransactionUiModel] via Safe Args — all values are already
- * pre-formatted, so this Fragment only binds strings to views.
- *
- * The "Cancel transaction" button delegates to [PaymentViewModel] and shows
- * a confirmation dialog before proceeding.
- */
 @AndroidEntryPoint
 class ReceiptFragment : Fragment() {
 
@@ -36,8 +30,6 @@ class ReceiptFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val args: ReceiptFragmentArgs by navArgs()
-
-    // Shared ViewModel with PaymentFragment via the NavGraph back stack
     private val viewModel: PaymentViewModel by viewModels()
 
     override fun onCreateView(
@@ -65,7 +57,6 @@ class ReceiptFragment : Fragment() {
             binding.tvDate.text = formattedDate
             binding.tvTransactionId.text = id
 
-            // Hide instalment row when payment is a single charge
             val hasInstalments = instalments.isNotBlank()
             binding.rowInstalments.isVisible = hasInstalments
             binding.dividerInstalments.isVisible = hasInstalments
@@ -74,17 +65,9 @@ class ReceiptFragment : Fragment() {
     }
 
     private fun setupClickListeners() {
-        binding.toolbar.setNavigationOnClickListener {
-            findNavController().popBackStack()
-        }
-
-        binding.btnNewPayment.setOnClickListener {
-            findNavController().popBackStack()
-        }
-
-        binding.btnCancelTransaction.setOnClickListener {
-            showCancelConfirmationDialog()
-        }
+        binding.toolbar.setNavigationOnClickListener { findNavController().popBackStack() }
+        binding.btnNewPayment.setOnClickListener { findNavController().popBackStack() }
+        binding.btnCancelTransaction.setOnClickListener { showCancelConfirmationDialog() }
     }
 
     private fun observeUiState() {
@@ -94,13 +77,12 @@ class ReceiptFragment : Fragment() {
                     when (state) {
                         is PaymentUiState.Loading -> showCancelLoading(true)
                         is PaymentUiState.Success -> {
-                            // Transaction cancelled — go back to payment screen
                             showCancelLoading(false)
                             findNavController().popBackStack()
                         }
                         is PaymentUiState.Error -> {
                             showCancelLoading(false)
-                            showCancelError(state.message)
+                            showCancelError(state.error.toErrorString(requireContext()))
                         }
                         else -> showCancelLoading(false)
                     }
@@ -114,9 +96,18 @@ class ReceiptFragment : Fragment() {
             .setTitle(getString(R.string.dialog_cancel_title))
             .setMessage(getString(R.string.dialog_cancel_message))
             .setPositiveButton(getString(R.string.dialog_cancel_confirm)) { _, _ ->
-                viewModel.cancelPreviousTransaction(args.transaction.id)
+                // Labels resolved here — Fragment has Context, ViewModel does not
+                val methodLabel = args.transaction.methodLabel
+                val statusLabel = getString(TransactionStatus.CANCELLED.labelRes())
+                viewModel.cancelPreviousTransaction(
+                    transactionId = args.transaction.id,
+                    methodLabel = methodLabel,
+                    statusLabel = statusLabel
+                )
             }
-            .setNegativeButton(getString(R.string.dialog_cancel_dismiss)) { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton(getString(R.string.dialog_cancel_dismiss)) { dialog, _ ->
+                dialog.dismiss()
+            }
             .show()
     }
 

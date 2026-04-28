@@ -15,8 +15,11 @@ import androidx.navigation.fragment.findNavController
 import com.nubiaferr.pospayment.R
 import com.nubiaferr.pospayment.databinding.FragmentPaymentBinding
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
+import com.nubiaferr.pospayment.domain.model.TransactionStatus
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
 import com.nubiaferr.pospayment.presentation.util.MoneyTextWatcher
+import com.nubiaferr.pospayment.presentation.util.labelRes
+import com.nubiaferr.pospayment.presentation.util.toErrorString
 import com.nubiaferr.pospayment.presentation.viewmodel.PaymentViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -45,22 +48,18 @@ class PaymentFragment : Fragment() {
         observeUiState()
         observeSelectedMethod()
         observeConfirmEnabled()
-        observeAmountError()
+        observeAmountValidation()
         observeInstalmentInputVisible()
         observeInstalmentSummary()
-        observeInstalmentsError()
+        observeInstalmentsValidation()
         setupClickListeners()
     }
 
     private fun setupMoneyInput() {
         moneyWatcher = MoneyTextWatcher(binding.etAmount)
         binding.etAmount.addTextChangedListener(moneyWatcher)
-        binding.etAmount.doAfterTextChanged {
-            notifyInputChanged()
-        }
-        binding.etInstallments.doAfterTextChanged {
-            notifyInputChanged()
-        }
+        binding.etAmount.doAfterTextChanged { notifyInputChanged() }
+        binding.etInstallments.doAfterTextChanged { notifyInputChanged() }
     }
 
     private fun notifyInputChanged() {
@@ -77,7 +76,6 @@ class PaymentFragment : Fragment() {
                     when (state) {
                         is PaymentUiState.Idle            -> showIdle()
                         is PaymentUiState.Loading         -> showLoading()
-                        is PaymentUiState.AwaitingCard    -> showAwaitingCard()
                         is PaymentUiState.ValidationError -> showValidationError(state)
                         is PaymentUiState.Success         -> navigateToReceipt(state)
                         is PaymentUiState.Error           -> showError(state)
@@ -87,16 +85,10 @@ class PaymentFragment : Fragment() {
         }
     }
 
-    /**
-     * Observes the selected payment method and updates button highlight + instalment
-     * section visibility reactively — including on config changes and when switching
-     * methods without changing the amount.
-     */
     private fun observeSelectedMethod() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.selectedMethod.collect { method ->
-                    // Highlight the active button
                     listOf(
                         PaymentMethod.CREDIT  to binding.btnCredit,
                         PaymentMethod.DEBIT   to binding.btnDebit,
@@ -121,11 +113,11 @@ class PaymentFragment : Fragment() {
         }
     }
 
-    private fun observeAmountError() {
+    private fun observeAmountValidation() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.amountError.collect { error ->
-                    binding.tilAmount.error = error
+                viewModel.amountValidation.collect { result ->
+                    binding.tilAmount.error = result?.toErrorString(requireContext())
                 }
             }
         }
@@ -167,11 +159,11 @@ class PaymentFragment : Fragment() {
         }
     }
 
-    private fun observeInstalmentsError() {
+    private fun observeInstalmentsValidation() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.instalmentsError.collect { error ->
-                    binding.tilInstallments.error = error
+                viewModel.instalmentsValidation.collect { result ->
+                    binding.tilInstallments.error = result?.toErrorString(requireContext())
                 }
             }
         }
@@ -199,9 +191,14 @@ class PaymentFragment : Fragment() {
 
     private fun submitPayment() {
         val method = viewModel.selectedMethod.value ?: return
+        // Labels resolved here — Fragment has Context, ViewModel does not
+        val methodLabel = getString(method.labelRes())
+        val statusLabel = getString(TransactionStatus.APPROVED.labelRes())
         viewModel.processPayment(
             rawAmount = moneyWatcher.rawAmount,
             method = method,
+            methodLabel = methodLabel,
+            statusLabel = statusLabel,
             rawInstallments = binding.etInstallments.text?.toString().orEmpty()
         )
     }
@@ -227,17 +224,10 @@ class PaymentFragment : Fragment() {
         binding.btnConfirm.isVisible = false
     }
 
-    private fun showAwaitingCard() {
-        binding.tvLoadingMessage.text = getString(R.string.loading_awaiting_card)
-        binding.layoutLoading.isVisible = true
-        binding.cardAmount.isVisible = false
-        binding.groupPaymentButtons.isVisible = false
-    }
-
     private fun showValidationError(state: PaymentUiState.ValidationError) {
-        binding.tilAmount.error = state.amountError
-        if (state.instalmentsError != null) {
-            binding.tilInstallments.error = state.instalmentsError
+        binding.tilAmount.error = state.amountError?.toErrorString(requireContext())
+        state.instalmentsError?.toErrorString(requireContext())?.let {
+            binding.tilInstallments.error = it
         }
         binding.btnConfirm.isVisible = true
         binding.layoutLoading.isVisible = false
@@ -246,7 +236,7 @@ class PaymentFragment : Fragment() {
     private fun showError(state: PaymentUiState.Error) {
         binding.layoutLoading.isVisible = false
         binding.cardError.isVisible = true
-        binding.tvErrorMessage.text = state.message
+        binding.tvErrorMessage.text = state.error.toErrorString(requireContext())
         binding.groupPaymentButtons.isVisible = !state.isBusinessError
         binding.tvMethodLabel.isVisible = !state.isBusinessError
         binding.cardAmount.isVisible = !state.isBusinessError

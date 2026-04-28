@@ -1,12 +1,7 @@
 package com.nubiaferr.pospayment.presentation.mapper
 
-import android.content.Context
-import com.nubiaferr.pospayment.R
-import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import com.nubiaferr.pospayment.domain.model.Transaction
-import com.nubiaferr.pospayment.domain.model.TransactionStatus
 import com.nubiaferr.pospayment.presentation.model.TransactionUiModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -16,21 +11,24 @@ import javax.inject.Inject
 /**
  * Maps domain [Transaction] entities into [TransactionUiModel] for display.
  *
- * All formatting is centralised here so Fragments and ViewModels stay free
- * of formatting logic. Localised labels are resolved from string resources.
+ * Responsible for data formatting (currency, date, instalment breakdown).
  */
-class PaymentUiMapper @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
+class PaymentUiMapper @Inject constructor() {
 
     private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
     private val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
 
-    fun toUiModel(transaction: Transaction): TransactionUiModel {
+    fun toUiModel(
+        transaction: Transaction,
+        methodLabel: String,
+        statusLabel: String
+    ): TransactionUiModel {
         val payment = transaction.payment
         val instalmentsLabel = if (payment.installments > 1) {
-            val instalment = currencyFormatter.format(payment.amount / payment.installments)
-            context.getString(R.string.label_instalment_breakdown, payment.installments, instalment)
+            formatInstalmentSummary(
+                instalments = payment.installments,
+                amountPerInstalment = payment.amount / payment.installments
+            )
         } else {
             ""
         }
@@ -38,25 +36,24 @@ class PaymentUiMapper @Inject constructor(
         return TransactionUiModel(
             id = transaction.id,
             formattedAmount = currencyFormatter.format(payment.amount),
-            methodLabel = payment.method.toLabel(),
+            methodLabel = methodLabel,
             instalments = instalmentsLabel,
             authCode = transaction.authCode,
-            statusLabel = transaction.status.toLabel(),
+            statusLabel = statusLabel,
             formattedDate = dateFormatter.format(Date(transaction.timestamp))
         )
     }
 
-    private fun PaymentMethod.toLabel(): String = when (this) {
-        PaymentMethod.CREDIT  -> context.getString(R.string.payment_method_credit)
-        PaymentMethod.DEBIT   -> context.getString(R.string.payment_method_debit)
-        PaymentMethod.PIX     -> context.getString(R.string.payment_method_pix)
-        PaymentMethod.VOUCHER -> context.getString(R.string.payment_method_voucher)
-    }
-
-    private fun TransactionStatus.toLabel(): String = when (this) {
-        TransactionStatus.APPROVED  -> context.getString(R.string.status_approved)
-        TransactionStatus.DECLINED  -> context.getString(R.string.status_declined)
-        TransactionStatus.CANCELLED -> context.getString(R.string.status_cancelled)
-        TransactionStatus.PENDING   -> context.getString(R.string.status_pending)
+    /**
+     * Formats a per-instalment breakdown string for real-time display.
+     * e.g. formatInstalmentSummary(12, 50.0) → "12x of R$ 50,00"
+     *
+     * Reuses [currencyFormatter] so the live preview and receipt are always consistent.
+     * The caller is responsible for applying the [R.string.label_instalment_breakdown]
+     * format string with the returned count and formatted amount.
+     */
+    fun formatInstalmentSummary(instalments: Int, amountPerInstalment: Double): String {
+        val formatted = currencyFormatter.format(amountPerInstalment)
+        return "${instalments}x $formatted"
     }
 }
