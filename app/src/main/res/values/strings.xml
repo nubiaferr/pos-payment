@@ -60,7 +60,7 @@
     <string name="dialog_cancel_confirm">Cancel transaction</string>
     <string name="dialog_cancel_dismiss">Keep</string>
     <string name="dialog_cancel_error_title">Could not cancel</string>
-    <string name="dialog_ok">Ok</string>
+    <string name="dialog_ok">OK</string>
 
     <!-- ── Receipt screen ─────────────────────────────────────────────────── -->
     <string name="receipt_payment_approved">Payment approved</string>
