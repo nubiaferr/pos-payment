@@ -195,6 +195,7 @@ class PaymentFragment : Fragment() {
     private fun showIdle() {
         binding.cardAmount.isVisible = true
         binding.groupPaymentButtons.isVisible = true
+        binding.tvMethodLabel.isVisible = true
         binding.layoutLoading.isVisible = false
         binding.cardError.isVisible = false
         binding.btnConfirm.isVisible = true
@@ -205,7 +206,9 @@ class PaymentFragment : Fragment() {
         binding.layoutLoading.isVisible = true
         binding.cardAmount.isVisible = false
         binding.groupPaymentButtons.isVisible = false
+        binding.tvMethodLabel.isVisible = false
         binding.cardError.isVisible = false
+        binding.btnConfirm.isVisible = false
     }
 
     private fun showAwaitingCard() {
@@ -229,7 +232,9 @@ class PaymentFragment : Fragment() {
         binding.cardError.isVisible = true
         binding.tvErrorMessage.text = state.message
         binding.groupPaymentButtons.isVisible = !state.isBusinessError
+        binding.tvMethodLabel.isVisible = !state.isBusinessError
         binding.cardAmount.isVisible = !state.isBusinessError
+        binding.btnConfirm.isVisible = !state.isBusinessError
     }
 
     private fun navigateToReceipt(state: PaymentUiState.Success) {
