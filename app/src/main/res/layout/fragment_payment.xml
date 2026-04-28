@@ -89,7 +89,14 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <!-- Instalments — visible only after Credit is selected -->
+                    <!--
+                        Instalments section — only visible when Credit is selected.
+                        Controlled by PaymentFragment.selectMethod().
+
+                        Inside, two states are toggled reactively via instalmentInputVisible:
+                        1. tv_instalments_hint  — shown when amount < R$ 10,00
+                        2. til_installments     — shown when amount >= R$ 10,00
+                    -->
                     <LinearLayout
                         android:id="@+id/layout_installments"
                         android:layout_width="match_parent"
@@ -98,35 +105,39 @@
                         android:orientation="vertical"
                         android:visibility="gone">
 
-                        <!-- Row: label + input field -->
+                        <!--
+                            Hint shown when amount is below the instalment minimum.
+                            Visibility: gone when til_installments is visible, visible otherwise.
+                        -->
+                        <TextView
+                            android:id="@+id/tv_instalments_hint"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Mínimo R$ 10,00 para parcelar"
+                            android:textColor="@color/on_surface_variant"
+                            android:textSize="12sp"
+                            android:visibility="visible"
+                            tools:visibility="visible" />
+
+                        <!--
+                            Input row — shown when amount >= R$ 10,00.
+                            Visibility: gone by default, shown reactively.
+                        -->
                         <LinearLayout
+                            android:id="@+id/layout_instalment_input"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                            android:orientation="horizontal"
+                            android:visibility="gone">
 
-                            <LinearLayout
+                            <TextView
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Parcelas"
-                                    android:textColor="@color/on_surface"
-                                    android:textSize="14sp" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="Mínimo R$ 10,00 para parcelar"
-                                    android:textColor="@color/on_surface_variant"
-                                    android:textSize="12sp" />
-
-                            </LinearLayout>
+                                android:text="Parcelas"
+                                android:textColor="@color/on_surface"
+                                android:textSize="14sp" />
 
                             <com.google.android.material.textfield.TextInputLayout
                                 android:id="@+id/til_installments"
@@ -150,9 +161,9 @@
                         </LinearLayout>
 
                         <!--
-                            Per-instalment value shown in real time as the operator types.
+                            Per-instalment breakdown shown in real time.
                             e.g. "12x de R$ 50,00"
-                            Visibility controlled by PaymentFragment via instalmentSummary StateFlow.
+                            Controlled by instalmentSummary StateFlow.
                         -->
                         <TextView
                             android:id="@+id/tv_instalment_summary"

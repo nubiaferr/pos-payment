@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.nubiaferr.pospayment.domain.exception.BusinessException
 import com.nubiaferr.pospayment.domain.model.Payment
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
+import com.nubiaferr.pospayment.domain.strategy.CreditPaymentStrategy
 import com.nubiaferr.pospayment.domain.usecase.CancelTransactionUseCase
 import com.nubiaferr.pospayment.domain.usecase.GetTransactionStatusUseCase
 import com.nubiaferr.pospayment.domain.usecase.ProcessPaymentUseCase
@@ -51,15 +52,40 @@ class PaymentViewModel @Inject constructor(
     private val _instalmentsError = MutableStateFlow<String?>(null)
     val instalmentsError: StateFlow<String?> = _instalmentsError.asStateFlow()
 
+    /**
+     * Controls the instalment input field visibility when Credit is selected.
+     *
+     * - `true`  → amount >= R$ 10,00: show input, hide the minimum notice
+     * - `false` → amount < R$ 10,00:  hide input, show the minimum notice
+     *
+     * Only relevant when the selected method is Credit. The Fragment is
+     * responsible for ignoring this flow for other methods.
+     */
+    private val _instalmentInputVisible = MutableStateFlow(false)
+    val instalmentInputVisible: StateFlow<Boolean> = _instalmentInputVisible.asStateFlow()
+
     private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
 
     /**
      * Called on every keystroke in either the amount or instalments field.
-     * Updates [instalmentSummary] and [instalmentsError] in real time.
+     *
+     * Updates in real time:
+     * - [instalmentInputVisible] based on whether amount meets the minimum
+     * - [instalmentSummary] with the per-instalment breakdown
+     * - [instalmentsError] when the instalment count exceeds the maximum
      */
     fun onInputChanged(rawAmount: Double, rawInstalments: String) {
-        val instalmentsResult = validator.validateInstallments(rawInstalments)
+        val meetsMinimum = rawAmount >= CreditPaymentStrategy.MIN_INSTALMENT_AMOUNT
+        _instalmentInputVisible.value = meetsMinimum
 
+        // If amount drops below minimum, clear instalment state
+        if (!meetsMinimum) {
+            _instalmentSummary.value = null
+            _instalmentsError.value = null
+            return
+        }
+
+        val instalmentsResult = validator.validateInstallments(rawInstalments)
         when (instalmentsResult) {
             is InstalmentsValidationResult.Invalid -> {
                 _instalmentsError.value = instalmentsResult.message
@@ -67,7 +93,7 @@ class PaymentViewModel @Inject constructor(
             }
             is InstalmentsValidationResult.Valid -> {
                 _instalmentsError.value = null
-                _instalmentSummary.value = if (instalmentsResult.installments > 1 && rawAmount > 0.0) {
+                _instalmentSummary.value = if (instalmentsResult.installments > 1) {
                     val perInstalment = rawAmount / instalmentsResult.installments
                     "${instalmentsResult.installments}x de ${currencyFormatter.format(perInstalment)}"
                 } else {
@@ -166,6 +192,7 @@ class PaymentViewModel @Inject constructor(
     fun resetState() {
         _instalmentSummary.value = null
         _instalmentsError.value = null
+        _instalmentInputVisible.value = false
         _uiState.value = PaymentUiState.Idle
     }
 }

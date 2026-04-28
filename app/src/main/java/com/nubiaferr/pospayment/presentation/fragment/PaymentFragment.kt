@@ -43,6 +43,7 @@ class PaymentFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupMoneyInput()
         observeUiState()
+        observeInstalmentInputVisible()
         observeInstalmentSummary()
         observeInstalmentsError()
         setupClickListeners()
@@ -84,6 +85,33 @@ class PaymentFragment : Fragment() {
         }
     }
 
+    /**
+     * Reactively controls the instalment section when Credit is selected.
+     *
+     * - amount >= R$ 10,00 → shows [til_installments], hides [tv_installments_hint]
+     * - amount <  R$ 10,00 → hides [til_installments], shows [tv_installments_hint]
+     *
+     * The outer [layout_installments] is still toggled by [selectMethod] —
+     * this observer only runs when the layout is already visible (Credit selected).
+     */
+    private fun observeInstalmentInputVisible() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.instalmentInputVisible.collect { inputVisible ->
+                    // No guard here — layout_installments is already gone for non-Credit methods.
+                    // Removing the guard ensures the correct state is applied immediately
+                    // when the user switches TO Credit without changing the amount.
+                    binding.layoutInstalmentInput.isVisible = inputVisible
+                    binding.tvInstalmentsHint.isVisible = !inputVisible
+                    if (!inputVisible) {
+                        binding.etInstallments.text?.clear()
+                        binding.tvInstalmentSummary.isVisible = false
+                    }
+                }
+            }
+        }
+    }
+
     private fun observeInstalmentSummary() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -95,11 +123,6 @@ class PaymentFragment : Fragment() {
         }
     }
 
-    /**
-     * Observes inline instalment field errors in real time.
-     * Error appears as soon as the operator types a value above 12,
-     * and clears as soon as they correct it — without needing to tap Confirm.
-     */
     private fun observeInstalmentsError() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -133,6 +156,8 @@ class PaymentFragment : Fragment() {
         ).forEach { (m, btn) -> btn.isSelected = (m == method) }
 
         val isCredit = method == PaymentMethod.CREDIT
+        // Show the instalment section container — the inner views are
+        // controlled reactively by observeInstalmentInputVisible()
         binding.layoutInstallments.isVisible = isCredit
         if (!isCredit) {
             binding.etInstallments.text?.clear()
@@ -140,6 +165,8 @@ class PaymentFragment : Fragment() {
         }
 
         binding.btnConfirm.isVisible = true
+        // Trigger an immediate evaluation with the current amount
+        notifyInputChanged()
     }
 
     private fun submitPayment() {
@@ -178,8 +205,6 @@ class PaymentFragment : Fragment() {
 
     private fun showValidationError(state: PaymentUiState.ValidationError) {
         binding.tilAmount.error = state.amountError
-        // instalmentsError already shown via observeInstalmentsError —
-        // only override here if submit found an error the keystroke observer missed
         if (state.instalmentsError != null) {
             binding.tilInstallments.error = state.instalmentsError
         }
