@@ -196,9 +196,7 @@ app/src/main/java/com/nubiaferr/pospayment/
  
 ---
 
-## What's incomplete / what I'd prioritize next
-
-**Intentional simplifications:**
+## Intentional simplifications:
 - **No real API.** `FakePaymentService` simulates the acquirer. `PaymentApi` and the Retrofit `PaymentService` wrapper are fully implemented — swapping them in is one line in `NetworkModule`.
 - **No card reader SDK.**
 - **No operator authentication.** Session management is out of scope.
@@ -229,7 +227,7 @@ That said, the package structure mirrors a multi-module layout exactly — if th
 
 The reason this works cleanly is the dependency rule already enforced in code: `domain` imports nothing from `data` or `presentation`. `PaymentUiMapper`, `MoneyFormatter`, and the validation layer are also already free of Android dependencies, making them candidates for a shared `:core` module or `commonMain` in a KMP setup.
 
-**What I'd prioritize next:**
+## What I'd prioritize next:
 
 1. **Compose Multiplatform / KMP migration** — the Domain layer and `PaymentUiMapper` are already free of Android dependencies; `domain/` and `data/remote/dto/` can move to `commonMain` as-is. See KMP readiness table below.
 2. **Pix polling** — a real Pix flow requires polling until the QR code is confirmed; I'd implement this as a `Flow`-based loop with exponential backoff inside `GetTransactionStatusUseCase`.
