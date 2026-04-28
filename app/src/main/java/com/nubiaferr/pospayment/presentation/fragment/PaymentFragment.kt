@@ -6,7 +6,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
-import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -15,6 +14,7 @@ import androidx.navigation.fragment.findNavController
 import com.nubiaferr.pospayment.databinding.FragmentPaymentBinding
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
+import com.nubiaferr.pospayment.presentation.util.MoneyTextWatcher
 import com.nubiaferr.pospayment.presentation.viewmodel.PaymentViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -22,13 +22,9 @@ import kotlinx.coroutines.launch
 /**
  * Entry screen for the POS payment flow.
  *
- * Two-step UX:
- * 1. Operator enters the amount and taps a payment method button to select it.
- *    Selecting Credit reveals the instalment field. No payment is triggered yet.
- * 2. Operator taps "Confirmar pagamento" to submit.
- *
- * This Fragment contains zero validation logic or business constants —
- * it passes raw strings to [PaymentViewModel] and renders whatever state it receives.
+ * The amount field is formatted automatically as BRL currency via [MoneyTextWatcher].
+ * This Fragment contains zero validation logic — it passes the watcher's [MoneyTextWatcher.rawAmount]
+ * and raw strings to [PaymentViewModel] and renders whatever state it receives.
  */
 @AndroidEntryPoint
 class PaymentFragment : Fragment() {
@@ -39,6 +35,7 @@ class PaymentFragment : Fragment() {
     private val viewModel: PaymentViewModel by viewModels()
 
     private var selectedMethod: PaymentMethod? = null
+    private lateinit var moneyWatcher: MoneyTextWatcher
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,9 +48,26 @@ class PaymentFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupMoneyInput()
         observeUiState()
         setupClickListeners()
-        setupInputValidation()
+    }
+
+    /**
+     * Attaches [MoneyTextWatcher] to the amount field.
+     * After this, [moneyWatcher.rawAmount] always holds the current parsed value.
+     */
+    private fun setupMoneyInput() {
+        moneyWatcher = MoneyTextWatcher(binding.etAmount)
+        binding.etAmount.addTextChangedListener(moneyWatcher)
+        // Clear field-level error as soon as the user starts typing
+        binding.etAmount.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: android.text.Editable?) {
+                binding.tilAmount.error = null
+            }
+        })
     }
 
     private fun observeUiState() {
@@ -87,13 +101,6 @@ class PaymentFragment : Fragment() {
         }
     }
 
-    private fun setupInputValidation() {
-        // Clear field error as soon as the user starts editing
-        binding.etAmount.doAfterTextChanged {
-            binding.tilAmount.error = null
-        }
-    }
-
     private fun selectMethod(method: PaymentMethod) {
         selectedMethod = method
 
@@ -112,12 +119,12 @@ class PaymentFragment : Fragment() {
     }
 
     /**
-     * Passes raw strings directly to the ViewModel — no parsing or validation here.
+     * Submits the payment using the pre-parsed [MoneyTextWatcher.rawAmount].
      */
     private fun submitPayment() {
         val method = selectedMethod ?: return
         viewModel.processPayment(
-            rawAmount = binding.etAmount.text?.toString().orEmpty(),
+            rawAmount = moneyWatcher.rawAmount,
             method = method,
             rawInstallments = binding.etInstallments.text?.toString().orEmpty()
         )
@@ -149,7 +156,6 @@ class PaymentFragment : Fragment() {
     }
 
     private fun showValidationError(state: PaymentUiState.ValidationError) {
-        // Field-level error — keep the form visible so the operator can correct it
         binding.tilAmount.error = state.message
         binding.btnConfirm.isVisible = true
         binding.layoutLoading.isVisible = false
