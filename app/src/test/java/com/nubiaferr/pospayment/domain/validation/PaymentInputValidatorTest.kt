@@ -8,8 +8,8 @@ import org.junit.Test
 /**
  * Unit tests for [PaymentInputValidator].
  *
- * Covers every branch of amount validation and instalment sanitisation.
- * No mocks needed — pure logic.
+ * Amount now arrives as a pre-parsed [Double] from [MoneyTextWatcher].
+ * These tests cover boundary rules only — string parsing is tested in [MoneyTextWatcherTest].
  */
 class PaymentInputValidatorTest {
 
@@ -20,91 +20,58 @@ class PaymentInputValidatorTest {
         validator = PaymentInputValidator()
     }
 
-    // ── validateAmount — valid inputs ──────────────────────────────────────────
+    // ── validateAmount — valid ─────────────────────────────────────────────────
 
     @Test
-    fun `given valid decimal with dot, when validateAmount, then returns Valid`() {
-        val result = validator.validateAmount("29.90")
+    fun `given positive amount, when validateAmount, then returns Valid`() {
+        val result = validator.validateAmount(29.90)
         assertTrue(result is AmountValidationResult.Valid)
         assertEquals(29.90, (result as AmountValidationResult.Valid).amount, 0.001)
     }
 
     @Test
-    fun `given valid decimal with comma, when validateAmount, then returns Valid`() {
-        val result = validator.validateAmount("29,90")
-        assertTrue(result is AmountValidationResult.Valid)
-        assertEquals(29.90, (result as AmountValidationResult.Valid).amount, 0.001)
-    }
-
-    @Test
-    fun `given integer string, when validateAmount, then returns Valid`() {
-        val result = validator.validateAmount("100")
-        assertTrue(result is AmountValidationResult.Valid)
-        assertEquals(100.0, (result as AmountValidationResult.Valid).amount, 0.001)
-    }
-
-    @Test
-    fun `given amount with leading and trailing spaces, when validateAmount, then returns Valid`() {
-        val result = validator.validateAmount("  50.00  ")
+    fun `given minimum positive amount, when validateAmount, then returns Valid`() {
+        val result = validator.validateAmount(0.01)
         assertTrue(result is AmountValidationResult.Valid)
     }
 
     @Test
     fun `given amount exactly at maximum, when validateAmount, then returns Valid`() {
-        val result = validator.validateAmount("99999.99")
+        val result = validator.validateAmount(99999.99)
         assertTrue(result is AmountValidationResult.Valid)
     }
 
-    // ── validateAmount — invalid inputs ───────────────────────────────────────
-
     @Test
-    fun `given blank string, when validateAmount, then returns Invalid`() {
-        val result = validator.validateAmount("")
-        assertTrue(result is AmountValidationResult.Invalid)
+    fun `given typical amount, when validateAmount, then Valid preserves the exact value`() {
+        val result = validator.validateAmount(150.0)
+        assertEquals(150.0, (result as AmountValidationResult.Valid).amount, 0.001)
     }
 
-    @Test
-    fun `given whitespace only, when validateAmount, then returns Invalid`() {
-        val result = validator.validateAmount("   ")
-        assertTrue(result is AmountValidationResult.Invalid)
-    }
-
-    @Test
-    fun `given non-numeric string, when validateAmount, then returns Invalid`() {
-        val result = validator.validateAmount("abc")
-        assertTrue(result is AmountValidationResult.Invalid)
-    }
+    // ── validateAmount — invalid ───────────────────────────────────────────────
 
     @Test
     fun `given zero, when validateAmount, then returns Invalid`() {
-        val result = validator.validateAmount("0")
+        val result = validator.validateAmount(0.0)
         assertTrue(result is AmountValidationResult.Invalid)
         assertTrue((result as AmountValidationResult.Invalid).message.contains("maior que zero"))
     }
 
     @Test
     fun `given negative value, when validateAmount, then returns Invalid`() {
-        val result = validator.validateAmount("-10.00")
+        val result = validator.validateAmount(-10.0)
         assertTrue(result is AmountValidationResult.Invalid)
-    }
-
-    @Test
-    fun `given amount above maximum, when validateAmount, then returns Invalid`() {
-        val result = validator.validateAmount("100000.00")
-        assertTrue(result is AmountValidationResult.Invalid)
-        assertTrue((result as AmountValidationResult.Invalid).message.isNotBlank())
     }
 
     @Test
     fun `given amount one cent above maximum, when validateAmount, then returns Invalid`() {
-        val result = validator.validateAmount("100000.00")
+        val result = validator.validateAmount(100000.00)
         assertTrue(result is AmountValidationResult.Invalid)
     }
 
     @Test
-    fun `given malformed double, when validateAmount, then returns Invalid`() {
-        val result = validator.validateAmount("1.5.3")
-        assertTrue(result is AmountValidationResult.Invalid)
+    fun `given amount well above maximum, when validateAmount, then Invalid message is not blank`() {
+        val result = validator.validateAmount(999999.0)
+        assertTrue((result as AmountValidationResult.Invalid).message.isNotBlank())
     }
 
     // ── validateInstallments ───────────────────────────────────────────────────
@@ -125,7 +92,7 @@ class PaymentInputValidatorTest {
     }
 
     @Test
-    fun `given zero, when validateInstallments, then returns 1 (clamped to minimum)`() {
+    fun `given zero, when validateInstallments, then returns 1`() {
         assertEquals(1, validator.validateInstallments("0"))
     }
 

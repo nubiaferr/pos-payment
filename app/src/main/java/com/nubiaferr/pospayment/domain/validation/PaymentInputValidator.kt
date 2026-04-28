@@ -1,58 +1,43 @@
 package com.nubiaferr.pospayment.domain.validation
 
 import java.math.BigDecimal
-import java.math.RoundingMode
 import javax.inject.Inject
 
 /**
- * Validates raw user input before it reaches the payment use case.
+ * Validates payment input values before they reach the use case.
  *
- * Keeps formatting and boundary rules out of both the Fragment and the ViewModel.
- * Pure Kotlin — no Android dependencies, fully unit-testable.
- *
- * KMP note: can be moved to commonMain as-is.
+ * Amount arrives as a pre-parsed [Double] from [MoneyTextWatcher] — this class
+ * only enforces business boundary rules (zero, negative, maximum).
+ * Instalment count is validated and clamped here as well.
  */
 class PaymentInputValidator @Inject constructor() {
 
     /**
-     * Validates and parses the raw amount string typed by the operator.
+     * Validates a pre-parsed amount value.
      *
-     * Accepts both dot and comma as decimal separators (e.g. "29.90" or "29,90").
-     *
-     * @return [AmountValidationResult.Valid] with the parsed value,
-     *         or [AmountValidationResult.Invalid] with a user-facing message.
+     * @param amount The value already parsed by [MoneyTextWatcher].
+     * @return [AmountValidationResult.Valid] or [AmountValidationResult.Invalid].
      */
-    fun validateAmount(raw: String): AmountValidationResult {
-        val trimmed = raw.trim()
+    fun validateAmount(amount: Double): AmountValidationResult {
+        val value = BigDecimal(amount.toString())
 
-        if (trimmed.isBlank()) {
-            return AmountValidationResult.Invalid("Informe um valor")
-        }
-
-        val normalised = trimmed.replace(",", ".")
-        val amount = try {
-            BigDecimal(normalised).setScale(2, RoundingMode.HALF_UP)
-        } catch (e: NumberFormatException) {
-            return AmountValidationResult.Invalid("Informe um valor válido (ex: 29,90)")
-        }
-
-        if (amount <= BigDecimal.ZERO) {
+        if (value <= BigDecimal.ZERO) {
             return AmountValidationResult.Invalid("O valor deve ser maior que zero")
         }
 
-        if (amount > MAX_TRANSACTION_AMOUNT) {
+        if (value > MAX_TRANSACTION_AMOUNT) {
             return AmountValidationResult.Invalid(
                 "Valor máximo por transação: R\$ ${MAX_TRANSACTION_AMOUNT.toPlainString()}"
             )
         }
 
-        return AmountValidationResult.Valid(amount.toDouble())
+        return AmountValidationResult.Valid(amount)
     }
 
     /**
-     * Validates the instalment count entered by the operator.
+     * Sanitises the instalment count entered by the operator.
      *
-     * @return A sanitised instalment count, clamped to [1, MAX_INSTALLMENTS].
+     * @return A value clamped to [1, MAX_INSTALLMENTS]. Defaults to 1 for blank/invalid input.
      */
     fun validateInstallments(raw: String): Int =
         raw.trim().toIntOrNull()?.coerceIn(1, MAX_INSTALLMENTS) ?: 1
