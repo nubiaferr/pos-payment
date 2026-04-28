@@ -24,18 +24,15 @@ import javax.inject.Inject
 /**
  * ViewModel for the payment screen.
  *
- * Owns the UI state lifecycle and delegates:
- * - Input validation to [PaymentInputValidator]
- * - Business operations to the domain use cases
- *
- * The Fragment observes [uiState] and reacts to each emission without
- * containing any logic or constants of its own.
+ * Delegates input validation to [PaymentInputValidator] and business
+ * operations to the domain use cases. The Fragment passes the pre-parsed
+ * [Double] from [MoneyTextWatcher] — no string parsing happens here.
  *
  * @property processPayment       Use case for initiating a payment.
  * @property cancelTransaction    Use case for reversing an approved transaction.
  * @property getTransactionStatus Use case for polling a pending transaction.
  * @property mapper               Converts domain entities to UI models.
- * @property validator            Validates and parses raw input from the UI.
+ * @property validator            Enforces boundary rules on the parsed input.
  * @property dispatcher           Coroutine dispatcher — injectable for testing.
  */
 @HiltViewModel
@@ -50,27 +47,22 @@ class PaymentViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<PaymentUiState>(PaymentUiState.Idle)
 
-    /**
-     * The current UI state. Collect in the Fragment inside
-     * `repeatOnLifecycle(Lifecycle.State.STARTED)`.
-     */
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
     /**
-     * Validates raw input and, if valid, initiates a payment.
+     * Validates the pre-parsed amount and, if valid, initiates a payment.
      *
-     * Emits [PaymentUiState.ValidationError] for invalid input so the Fragment
-     * can show field-level errors without triggering a network call.
-     * Emits [PaymentUiState.Loading] then [PaymentUiState.Success] or [PaymentUiState.Error]
-     * for valid input.
+     * Emits [PaymentUiState.ValidationError] synchronously for boundary violations
+     * (zero, negative, above maximum) so the Fragment can show a field-level error
+     * without triggering a network call.
      *
-     * @param rawAmount       Raw string from the amount input field.
+     * @param rawAmount       Pre-parsed [Double] from [MoneyTextWatcher.rawAmount].
      * @param method          Payment method selected by the operator.
      * @param rawInstallments Raw string from the instalment field (may be blank).
      * @param description     Optional merchant description.
      */
     fun processPayment(
-        rawAmount: String,
+        rawAmount: Double,
         method: PaymentMethod,
         rawInstallments: String = "",
         description: String = ""
@@ -106,11 +98,6 @@ class PaymentViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Cancels a previously approved transaction.
-     *
-     * @param transactionId The unique identifier of the transaction to reverse.
-     */
     fun cancelPreviousTransaction(transactionId: String) {
         viewModelScope.launch(dispatcher) {
             _uiState.value = PaymentUiState.Loading
@@ -128,12 +115,6 @@ class PaymentViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Checks the current status of a transaction.
-     * Useful for recovering from a terminal crash or polling a pending Pix.
-     *
-     * @param transactionId The unique identifier of the transaction.
-     */
     fun checkTransactionStatus(transactionId: String) {
         viewModelScope.launch(dispatcher) {
             _uiState.value = PaymentUiState.Loading
@@ -151,7 +132,6 @@ class PaymentViewModel @Inject constructor(
         }
     }
 
-    /** Resets the UI state back to [PaymentUiState.Idle]. */
     fun resetState() {
         _uiState.value = PaymentUiState.Idle
     }

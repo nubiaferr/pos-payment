@@ -33,8 +33,9 @@ import org.junit.Test
 /**
  * Unit tests for [PaymentViewModel].
  *
- * [PaymentInputValidator] is mocked so these tests focus exclusively on
- * ViewModel state transitions — validator logic is covered in [PaymentInputValidatorTest].
+ * [PaymentInputValidator] is mocked so these tests focus on ViewModel
+ * state transitions only. Validator boundary rules are covered in [PaymentInputValidatorTest].
+ * Amount arrives as [Double] (pre-parsed by [MoneyTextWatcher]).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PaymentViewModelTest {
@@ -69,7 +70,6 @@ class PaymentViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-
         processPaymentUseCase = mockk()
         cancelTransactionUseCase = mockk()
         getTransactionStatusUseCase = mockk()
@@ -101,42 +101,43 @@ class PaymentViewModelTest {
     // ── processPayment — validation failure ────────────────────────────────────
 
     @Test
-    fun `given invalid amount, when processPayment called, then emits ValidationError without loading`() = runTest {
-        every { validator.validateAmount(any()) } returns
+    fun `given invalid amount, when processPayment called, then emits ValidationError synchronously`() = runTest {
+        every { validator.validateAmount(0.0) } returns
                 AmountValidationResult.Invalid("O valor deve ser maior que zero")
 
-        viewModel.processPayment(rawAmount = "0", method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = 0.0, method = PaymentMethod.CREDIT)
 
-        // Validation is synchronous — no coroutine launched, state changes immediately
+        // Validation is synchronous — no coroutine launched
         val state = viewModel.uiState.value
         assertTrue(state is PaymentUiState.ValidationError)
-        assertEquals("O valor deve ser maior que zero", (state as PaymentUiState.ValidationError).message)
+        assertEquals(
+            "O valor deve ser maior que zero",
+            (state as PaymentUiState.ValidationError).message
+        )
     }
 
     @Test
-    fun `given invalid amount, when processPayment called, then never calls use case`() = runTest {
-        every { validator.validateAmount(any()) } returns
-                AmountValidationResult.Invalid("Informe um valor válido")
+    fun `given amount above maximum, when processPayment called, then emits ValidationError`() = runTest {
+        every { validator.validateAmount(999999.0) } returns
+                AmountValidationResult.Invalid("Valor máximo por transação: R$ 99999.99")
 
-        viewModel.processPayment(rawAmount = "abc", method = PaymentMethod.CREDIT)
-        advanceUntilIdle()
+        viewModel.processPayment(rawAmount = 999999.0, method = PaymentMethod.PIX)
 
-        // Use case should never have been called
-        coEvery { processPaymentUseCase(any()) } returns Result.failure(Exception("should not be called"))
-        assertEquals(0, 0) // verified implicitly — mockk would throw if called unexpectedly
+        assertTrue(viewModel.uiState.value is PaymentUiState.ValidationError)
     }
 
     // ── processPayment — success ───────────────────────────────────────────────
 
     @Test
     fun `given valid amount and successful payment, when processPayment called, then emits Success`() = runTest {
-        every { validator.validateAmount("100.00") } returns AmountValidationResult.Valid(100.0)
+        every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
         every { validator.validateInstallments("") } returns 1
         coEvery { processPaymentUseCase(any()) } returns Result.success(approvedTransaction)
         every { mapper.toUiModel(approvedTransaction) } returns uiModel
 
-        viewModel.processPayment(rawAmount = "100.00", method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = 100.0, method = PaymentMethod.CREDIT)
 
+        // With StandardTestDispatcher coroutine is queued but not yet started
         assertEquals(PaymentUiState.Idle, viewModel.uiState.value)
 
         advanceUntilIdle()
@@ -150,7 +151,7 @@ class PaymentViewModelTest {
         every { validator.validateInstallments(any()) } returns 1
         coEvery { processPaymentUseCase(any()) } returns Result.failure(Exception("Network timeout"))
 
-        viewModel.processPayment(rawAmount = "100.00", method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = 100.0, method = PaymentMethod.CREDIT)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as PaymentUiState.Error
@@ -164,7 +165,7 @@ class PaymentViewModelTest {
         coEvery { processPaymentUseCase(any()) } returns
                 Result.failure(InstalmentNotAllowedException(10.0))
 
-        viewModel.processPayment(rawAmount = "5.00", method = PaymentMethod.CREDIT, rawInstallments = "2")
+        viewModel.processPayment(rawAmount = 5.0, method = PaymentMethod.CREDIT, rawInstallments = "2")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as PaymentUiState.Error
@@ -172,17 +173,16 @@ class PaymentViewModelTest {
     }
 
     @Test
-    fun `given failure with null message, when processPayment called, then emits generic error message`() = runTest {
+    fun `given failure with null message, when processPayment, then emits generic error`() = runTest {
         every { validator.validateAmount(any()) } returns AmountValidationResult.Valid(100.0)
         every { validator.validateInstallments(any()) } returns 1
         coEvery { processPaymentUseCase(any()) } returns
                 Result.failure(Exception(null as String?))
 
-        viewModel.processPayment(rawAmount = "100.00", method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = 100.0, method = PaymentMethod.CREDIT)
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value as PaymentUiState.Error
-        assertEquals("Erro desconhecido", state.message)
+        assertEquals("Erro desconhecido", (viewModel.uiState.value as PaymentUiState.Error).message)
     }
 
     // ── cancelPreviousTransaction ──────────────────────────────────────────────
@@ -207,8 +207,10 @@ class PaymentViewModelTest {
         viewModel.cancelPreviousTransaction("txn_vm_001")
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value as PaymentUiState.Error
-        assertEquals("Transação não cancelável", state.message)
+        assertEquals(
+            "Transação não cancelável",
+            (viewModel.uiState.value as PaymentUiState.Error).message
+        )
     }
 
     // ── checkTransactionStatus ─────────────────────────────────────────────────
@@ -233,9 +235,8 @@ class PaymentViewModelTest {
         every { validator.validateInstallments(any()) } returns 1
         coEvery { processPaymentUseCase(any()) } returns Result.failure(Exception("err"))
 
-        viewModel.processPayment(rawAmount = "100.00", method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = 100.0, method = PaymentMethod.CREDIT)
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.value is PaymentUiState.Error)
 
         viewModel.resetState()
 
@@ -244,10 +245,10 @@ class PaymentViewModelTest {
 
     @Test
     fun `when resetState called after ValidationError, then state returns to Idle`() = runTest {
-        every { validator.validateAmount(any()) } returns
-                AmountValidationResult.Invalid("Informe um valor")
+        every { validator.validateAmount(0.0) } returns
+                AmountValidationResult.Invalid("O valor deve ser maior que zero")
 
-        viewModel.processPayment(rawAmount = "", method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = 0.0, method = PaymentMethod.CREDIT)
         assertTrue(viewModel.uiState.value is PaymentUiState.ValidationError)
 
         viewModel.resetState()
