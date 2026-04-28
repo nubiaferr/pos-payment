@@ -5,6 +5,7 @@ import com.nubiaferr.pospayment.data.local.entity.TransactionEntity
 import com.nubiaferr.pospayment.data.mapper.PaymentDataMapper
 import com.nubiaferr.pospayment.data.remote.service.PaymentService
 import com.nubiaferr.pospayment.domain.exception.TransactionNotCancellableException
+import com.nubiaferr.pospayment.domain.exception.TransactionNotFoundException
 import com.nubiaferr.pospayment.domain.model.Payment
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import com.nubiaferr.pospayment.domain.model.Transaction
@@ -48,9 +49,7 @@ class PaymentRepositoryImpl @Inject constructor(
         return service.cancelTransaction(transactionId).fold(
             onSuccess = { dto ->
                 val originalPayment = local?.toDomainPayment()
-                    ?: return Result.failure(
-                        Exception("Transaction $transactionId not found locally.")
-                    )
+                    ?: return Result.failure(TransactionNotFoundException(transactionId))
                 val transaction = mapper.toDomain(dto, originalPayment)
                 dao.upsert(mapper.toEntity(transaction))
                 Result.success(transaction)
@@ -65,16 +64,14 @@ class PaymentRepositoryImpl @Inject constructor(
         if (remoteResult.isSuccess) {
             val local = dao.getById(transactionId)
             val originalPayment = local?.toDomainPayment()
-                ?: return Result.failure(
-                    Exception("Transaction $transactionId not found locally.")
-                )
+                ?: return Result.failure(TransactionNotFoundException(transactionId))
             val transaction = mapper.toDomain(remoteResult.getOrThrow(), originalPayment)
             dao.upsert(mapper.toEntity(transaction))
             return Result.success(transaction)
         }
 
         val cached = dao.getById(transactionId)
-            ?: return Result.failure(Exception("Transaction $transactionId not found."))
+            ?: return Result.failure(TransactionNotFoundException(transactionId))
 
         return Result.success(cached.toDomain())
     }

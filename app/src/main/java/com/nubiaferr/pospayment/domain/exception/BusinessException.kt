@@ -33,3 +33,7 @@ class VoucherLimitExceededException(
 class TransactionNotCancellableException(
     val transactionId: String
 ) : BusinessException("Transaction '$transactionId' cannot be cancelled in its current state.")
+
+class TransactionNotFoundException(
+    val transactionId: String
+) : BusinessException("Transaction '$transactionId' not found.")

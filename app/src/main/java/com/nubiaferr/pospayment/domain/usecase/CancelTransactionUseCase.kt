@@ -7,21 +7,12 @@ import javax.inject.Inject
 /**
  * Cancels a previously approved transaction.
  *
- * Delegates validation and reversal to [PaymentRepository]. The repository
- * implementation is responsible for checking the transaction status before
- * attempting cancellation.
- *
- * @property repository Contract for payment data operations.
+ * Delegates validation and reversal to [PaymentRepository], which is responsible
+ * for checking the transaction status before attempting cancellation.
  */
 class CancelTransactionUseCase @Inject constructor(
     private val repository: PaymentRepository
 ) {
-
-    /**
-     * @param transactionId The unique identifier of the transaction to cancel.
-     * @return [Result.success] with the updated [Transaction], or [Result.failure].
-     */
-    suspend operator fun invoke(transactionId: String): Result<Transaction> {
-        return repository.cancelTransaction(transactionId)
-    }
+    suspend operator fun invoke(transactionId: String): Result<Transaction> =
+        repository.cancelTransaction(transactionId)
 }

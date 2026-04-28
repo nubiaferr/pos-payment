@@ -7,9 +7,8 @@ import com.nubiaferr.pospayment.data.remote.dto.TransactionResponseDto
  * Contract for the acquirer payment service layer.
  *
  * Abstracts the data source so [PaymentRepositoryImpl] does not depend on
- * whether the implementation is a [FakePaymentService] (development/test) or
- * a real [PaymentService] (production).
-
+ * whether the implementation is [FakePaymentService] (development) or a
+ * real Retrofit-backed service (production).
  */
 interface PaymentService {
     suspend fun processPayment(request: PaymentRequestDto): Result<TransactionResponseDto>

@@ -6,7 +6,6 @@ import com.nubiaferr.pospayment.BuildConfig
 import com.nubiaferr.pospayment.data.local.PaymentDatabase
 import com.nubiaferr.pospayment.data.local.dao.PaymentDao
 import com.nubiaferr.pospayment.data.remote.service.FakePaymentService
-import com.nubiaferr.pospayment.data.remote.service.PaymentApi
 import com.nubiaferr.pospayment.data.remote.service.PaymentService
 import dagger.Module
 import dagger.Provides
@@ -17,16 +16,19 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 /**
- * Hilt module that provides network and database infrastructure dependencies.
+ * Provides network and database infrastructure dependencies.
  *
- * All bindings are [Singleton] — a single Retrofit instance and a single Room
- * database are shared across the entire app lifetime.
+ * All bindings are [Singleton] — one Retrofit instance and one Room database
+ * shared across the entire app lifetime.
+ *
+ * SWAP NOTE: To go live with a real acquirer API:
+ * 1. Uncomment [providePaymentApi] and add Retrofit + PaymentApi imports.
+ * 2. Replace [providePaymentService] to wrap [PaymentApi] in a real [PaymentService].
+ * No other class needs to change — [PaymentRepositoryImpl] depends only on the interface.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -37,10 +39,8 @@ object NetworkModule {
     private const val DB_NAME = "pos_payment.db"
 
     /**
-     * Provides a configured [OkHttpClient].
-     *
      * Logging is enabled only in debug builds to prevent sensitive card/PII data
-     * from being logged in production POS environments.
+     * from appearing in logcat in production POS environments.
      */
     @Provides
     @Singleton
@@ -50,7 +50,6 @@ object NetworkModule {
         } else {
             HttpLoggingInterceptor.Level.NONE
         }
-
         return OkHttpClient.Builder()
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -59,26 +58,9 @@ object NetworkModule {
             .build()
     }
 
-    @Provides
-    @Singleton
-    fun provideRetrofit(client: OkHttpClient): Retrofit = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .client(client)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-
-    @Provides
-    @Singleton
-    fun providePaymentApi(retrofit: Retrofit): PaymentApi =
-        retrofit.create(PaymentApi::class.java)
-
     /**
      * Provides the active [PaymentService] implementation.
-     *
-     * Currently returns [FakePaymentService] for development.
-     * To go live: replace the return value with a real [PaymentService] instance
-     * that wraps [PaymentApi]. The [PaymentRepositoryImpl] only sees the
-     * [PaymentService] interface and is unaffected by this swap.
+     * Currently [FakePaymentService] — swap for a real implementation when going live.
      */
     @Provides
     @Singleton
