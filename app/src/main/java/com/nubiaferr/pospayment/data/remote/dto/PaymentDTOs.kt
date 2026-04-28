@@ -6,7 +6,7 @@ import com.google.gson.annotations.SerializedName
 * Request body sent to the acquirer API to initiate a payment.
 *
 * This is a data-layer concern — if the API contract changes, only this class
-* and [PaymentDataMapper] need to be updated. The domain layer is unaffected.
+* and [com.nubiaferr.pospayment.data.mapper.PaymentDataMapper] need to be updated. The domain layer is unaffected.
 *
 * @property amount Transaction amount in BRL cents (e.g. 1000 = R$10.00).
 * @property method Payment method identifier as expected by the API.

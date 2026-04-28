@@ -4,7 +4,7 @@ package com.nubiaferr.pospayment.domain.model
  * Lifecycle states a [Transaction] can be in after processing.
  */
 enum class TransactionStatus {
-    /** Authorised by the acquirer and settled. */
+    /** Authorized by the acquirer and settled. */
     APPROVED,
 
     /** Declined by the acquirer or card network. */

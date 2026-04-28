@@ -16,7 +16,7 @@ import com.nubiaferr.pospayment.domain.validation.InstalmentsValidationResult
 /**
  * Maps domain enums and typed validation results to Android string resource IDs.
  *
- * Centralises all R.string references outside the ViewModel so the ViewModel
+ * Centralizes all R.string references outside the ViewModel so the ViewModel
  * stays free of Android Context and is easily unit-testable.
  *
  * Usage in Fragment:

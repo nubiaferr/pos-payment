@@ -68,9 +68,7 @@ class MoneyTextWatcher(
  *
  * Separated from [MoneyTextWatcher] so it can be unit-tested
  * without Robolectric or any Android context.
- *
- * KMP note: can be moved to commonMain as-is.
- */
+ **/
 class MoneyFormatter(locale: Locale = Locale("pt", "BR")) {
 
     private val symbols = DecimalFormatSymbols(locale)

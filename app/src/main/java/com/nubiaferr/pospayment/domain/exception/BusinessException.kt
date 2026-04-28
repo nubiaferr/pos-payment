@@ -4,7 +4,7 @@ package com.nubiaferr.pospayment.domain.exception
  * Base class for all domain-level business rule violations.
  *
  * Messages are intentionally kept in English here because the domain layer
- * has no Android context. Localised, user-facing strings are produced in
+ * has no Android context. Localized, user-facing strings are produced in
  * the presentation layer (PaymentUiMapper / PaymentViewModel) using
  * string resources.
  */
