@@ -6,18 +6,12 @@ import javax.inject.Inject
 /**
  * Validates payment input values before they reach the use case.
  *
- * Amount arrives as a pre-parsed [Double] from [MoneyTextWatcher] — this class
- * only enforces business boundary rules (zero, negative, maximum).
- * Instalment count is validated and clamped here as well.
+ * Amount arrives as a pre-parsed [Double] from [MoneyFormatter].
+ * Instalment count is validated and returns a typed result so the
+ * presentation layer can show specific errors per field.
  */
 class PaymentInputValidator @Inject constructor() {
 
-    /**
-     * Validates a pre-parsed amount value.
-     *
-     * @param amount The value already parsed by [MoneyTextWatcher].
-     * @return [AmountValidationResult.Valid] or [AmountValidationResult.Invalid].
-     */
     fun validateAmount(amount: Double): AmountValidationResult {
         val value = BigDecimal(amount.toString())
 
@@ -35,12 +29,32 @@ class PaymentInputValidator @Inject constructor() {
     }
 
     /**
-     * Sanitises the instalment count entered by the operator.
+     * Validates the instalment count.
      *
-     * @return A value clamped to [1, MAX_INSTALLMENTS]. Defaults to 1 for blank/invalid input.
+     * Returns [InstalmentsValidationResult.Invalid] when the input exceeds
+     * [MAX_INSTALLMENTS] so the caller can show an explicit field error
+     * instead of silently clamping the value.
+     *
+     * @param raw Raw string from the instalment input field.
+     * @return [InstalmentsValidationResult.Valid] with the parsed value,
+     *         or [InstalmentsValidationResult.Invalid] with a user-facing message.
      */
-    fun validateInstallments(raw: String): Int =
-        raw.trim().toIntOrNull()?.coerceIn(1, MAX_INSTALLMENTS) ?: 1
+    fun validateInstallments(raw: String): InstalmentsValidationResult {
+        val parsed = raw.trim().toIntOrNull()
+            ?: return InstalmentsValidationResult.Valid(1)   // blank/empty → default 1x
+
+        if (parsed < 1) {
+            return InstalmentsValidationResult.Valid(1)
+        }
+
+        if (parsed > MAX_INSTALLMENTS) {
+            return InstalmentsValidationResult.Invalid(
+                "Máximo de $MAX_INSTALLMENTS parcelas permitidas"
+            )
+        }
+
+        return InstalmentsValidationResult.Valid(parsed)
+    }
 
     companion object {
         val MAX_TRANSACTION_AMOUNT: BigDecimal = BigDecimal("99999.99")
@@ -48,8 +62,12 @@ class PaymentInputValidator @Inject constructor() {
     }
 }
 
-/** Result of [PaymentInputValidator.validateAmount]. */
 sealed class AmountValidationResult {
     data class Valid(val amount: Double) : AmountValidationResult()
     data class Invalid(val message: String) : AmountValidationResult()
+}
+
+sealed class InstalmentsValidationResult {
+    data class Valid(val installments: Int) : InstalmentsValidationResult()
+    data class Invalid(val message: String) : InstalmentsValidationResult()
 }

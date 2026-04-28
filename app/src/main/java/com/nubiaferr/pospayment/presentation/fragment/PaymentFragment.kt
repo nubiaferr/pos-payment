@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -19,13 +20,6 @@ import com.nubiaferr.pospayment.presentation.viewmodel.PaymentViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
-/**
- * Entry screen for the POS payment flow.
- *
- * The amount field is formatted automatically as BRL currency via [MoneyTextWatcher].
- * This Fragment contains zero validation logic — it passes the watcher's [MoneyTextWatcher.rawAmount]
- * and raw strings to [PaymentViewModel] and renders whatever state it receives.
- */
 @AndroidEntryPoint
 class PaymentFragment : Fragment() {
 
@@ -33,7 +27,6 @@ class PaymentFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: PaymentViewModel by viewModels()
-
     private var selectedMethod: PaymentMethod? = null
     private lateinit var moneyWatcher: MoneyTextWatcher
 
@@ -50,24 +43,32 @@ class PaymentFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupMoneyInput()
         observeUiState()
+        observeInstalmentSummary()
         setupClickListeners()
     }
 
-    /**
-     * Attaches [MoneyTextWatcher] to the amount field.
-     * After this, [moneyWatcher.rawAmount] always holds the current parsed value.
-     */
     private fun setupMoneyInput() {
         moneyWatcher = MoneyTextWatcher(binding.etAmount)
         binding.etAmount.addTextChangedListener(moneyWatcher)
-        // Clear field-level error as soon as the user starts typing
-        binding.etAmount.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: android.text.Editable?) {
-                binding.tilAmount.error = null
-            }
-        })
+        binding.etAmount.doAfterTextChanged {
+            binding.tilAmount.error = null
+            notifyInputChanged()
+        }
+        binding.etInstallments.doAfterTextChanged {
+            binding.tilInstallments.error = null
+            notifyInputChanged()
+        }
+    }
+
+    /**
+     * Notifies the ViewModel on every keystroke so [instalmentSummary]
+     * stays up to date while the operator types.
+     */
+    private fun notifyInputChanged() {
+        viewModel.onInputChanged(
+            rawAmount = moneyWatcher.rawAmount,
+            rawInstalments = binding.etInstallments.text?.toString().orEmpty()
+        )
     }
 
     private fun observeUiState() {
@@ -87,14 +88,28 @@ class PaymentFragment : Fragment() {
         }
     }
 
+    /**
+     * Shows the per-instalment value below the field in real time.
+     * e.g. "12x de R$ 50,00" — visible only when method is Credit and
+     * instalment count is greater than 1.
+     */
+    private fun observeInstalmentSummary() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.instalmentSummary.collect { summary ->
+                    binding.tvInstalmentSummary.isVisible = summary != null
+                    binding.tvInstalmentSummary.text = summary
+                }
+            }
+        }
+    }
+
     private fun setupClickListeners() {
         binding.btnCredit.setOnClickListener  { selectMethod(PaymentMethod.CREDIT) }
         binding.btnDebit.setOnClickListener   { selectMethod(PaymentMethod.DEBIT) }
         binding.btnPix.setOnClickListener     { selectMethod(PaymentMethod.PIX) }
         binding.btnVoucher.setOnClickListener { selectMethod(PaymentMethod.VOUCHER) }
-
         binding.btnConfirm.setOnClickListener { submitPayment() }
-
         binding.btnRetry.setOnClickListener {
             clearInputs()
             viewModel.resetState()
@@ -113,14 +128,14 @@ class PaymentFragment : Fragment() {
 
         val isCredit = method == PaymentMethod.CREDIT
         binding.layoutInstallments.isVisible = isCredit
-        if (!isCredit) binding.etInstallments.text?.clear()
+        if (!isCredit) {
+            binding.etInstallments.text?.clear()
+            binding.tvInstalmentSummary.isVisible = false
+        }
 
         binding.btnConfirm.isVisible = true
     }
 
-    /**
-     * Submits the payment using the pre-parsed [MoneyTextWatcher.rawAmount].
-     */
     private fun submitPayment() {
         val method = selectedMethod ?: return
         viewModel.processPayment(
@@ -156,7 +171,8 @@ class PaymentFragment : Fragment() {
     }
 
     private fun showValidationError(state: PaymentUiState.ValidationError) {
-        binding.tilAmount.error = state.message
+        binding.tilAmount.error = state.amountError
+        binding.tilInstallments.error = state.instalmentsError
         binding.btnConfirm.isVisible = true
         binding.layoutLoading.isVisible = false
     }
@@ -176,13 +192,13 @@ class PaymentFragment : Fragment() {
         viewModel.resetState()
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
-
     private fun clearInputs() {
         selectedMethod = null
         binding.etAmount.text?.clear()
         binding.etInstallments.text?.clear()
         binding.tilAmount.error = null
+        binding.tilInstallments.error = null
+        binding.tvInstalmentSummary.isVisible = false
         binding.layoutInstallments.isVisible = false
         binding.btnConfirm.isVisible = false
         listOf(

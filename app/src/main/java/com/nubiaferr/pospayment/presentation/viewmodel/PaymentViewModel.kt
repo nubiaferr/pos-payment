@@ -9,6 +9,7 @@ import com.nubiaferr.pospayment.domain.usecase.CancelTransactionUseCase
 import com.nubiaferr.pospayment.domain.usecase.GetTransactionStatusUseCase
 import com.nubiaferr.pospayment.domain.usecase.ProcessPaymentUseCase
 import com.nubiaferr.pospayment.domain.validation.AmountValidationResult
+import com.nubiaferr.pospayment.domain.validation.InstalmentsValidationResult
 import com.nubiaferr.pospayment.domain.validation.PaymentInputValidator
 import com.nubiaferr.pospayment.presentation.mapper.PaymentUiMapper
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
@@ -19,22 +20,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Locale
 import javax.inject.Inject
 
-/**
- * ViewModel for the payment screen.
- *
- * Delegates input validation to [PaymentInputValidator] and business
- * operations to the domain use cases. The Fragment passes the pre-parsed
- * [Double] from [MoneyTextWatcher] — no string parsing happens here.
- *
- * @property processPayment       Use case for initiating a payment.
- * @property cancelTransaction    Use case for reversing an approved transaction.
- * @property getTransactionStatus Use case for polling a pending transaction.
- * @property mapper               Converts domain entities to UI models.
- * @property validator            Enforces boundary rules on the parsed input.
- * @property dispatcher           Coroutine dispatcher — injectable for testing.
- */
 @HiltViewModel
 class PaymentViewModel @Inject constructor(
     private val processPayment: ProcessPaymentUseCase,
@@ -46,20 +35,39 @@ class PaymentViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PaymentUiState>(PaymentUiState.Idle)
-
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
     /**
-     * Validates the pre-parsed amount and, if valid, initiates a payment.
+     * Instalment summary shown below the field while the operator fills in the form.
+     * Emits a formatted string like "12x de R$ 50,00" or null when not applicable.
+     */
+    private val _instalmentSummary = MutableStateFlow<String?>(null)
+    val instalmentSummary: StateFlow<String?> = _instalmentSummary.asStateFlow()
+
+    private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
+
+    /**
+     * Called on every keystroke in either the amount or instalments field.
+     * Updates [instalmentSummary] in real time so the operator sees the
+     * per-instalment value before tapping Confirm.
      *
-     * Emits [PaymentUiState.ValidationError] synchronously for boundary violations
-     * (zero, negative, above maximum) so the Fragment can show a field-level error
-     * without triggering a network call.
-     *
-     * @param rawAmount       Pre-parsed [Double] from [MoneyTextWatcher.rawAmount].
-     * @param method          Payment method selected by the operator.
-     * @param rawInstallments Raw string from the instalment field (may be blank).
-     * @param description     Optional merchant description.
+     * @param rawAmount    Pre-parsed [Double] from [MoneyTextWatcher.rawAmount].
+     * @param rawInstalments Raw string from the instalments field.
+     */
+    fun onInputChanged(rawAmount: Double, rawInstalments: String) {
+        val instalments = rawInstalments.trim().toIntOrNull() ?: 1
+        _instalmentSummary.value = if (instalments > 1 && rawAmount > 0.0) {
+            val perInstalment = rawAmount / instalments
+            "${instalments}x de ${currencyFormatter.format(perInstalment)}"
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Validates both fields and, if valid, initiates a payment.
+     * Both field errors are collected before emitting so the operator
+     * sees all problems at once instead of one at a time.
      */
     fun processPayment(
         rawAmount: Double,
@@ -68,13 +76,21 @@ class PaymentViewModel @Inject constructor(
         description: String = ""
     ) {
         val amountResult = validator.validateAmount(rawAmount)
-        if (amountResult is AmountValidationResult.Invalid) {
-            _uiState.value = PaymentUiState.ValidationError(amountResult.message)
+        val instalmentsResult = validator.validateInstallments(rawInstallments)
+
+        val amountError = (amountResult as? AmountValidationResult.Invalid)?.message
+        val instalmentsError = (instalmentsResult as? InstalmentsValidationResult.Invalid)?.message
+
+        if (amountError != null || instalmentsError != null) {
+            _uiState.value = PaymentUiState.ValidationError(
+                amountError = amountError,
+                instalmentsError = instalmentsError
+            )
             return
         }
 
         val amount = (amountResult as AmountValidationResult.Valid).amount
-        val installments = validator.validateInstallments(rawInstallments)
+        val installments = (instalmentsResult as InstalmentsValidationResult.Valid).installments
 
         viewModelScope.launch(dispatcher) {
             _uiState.value = PaymentUiState.Loading
@@ -86,6 +102,7 @@ class PaymentViewModel @Inject constructor(
             )
             processPayment(payment).fold(
                 onSuccess = { transaction ->
+                    _instalmentSummary.value = null
                     _uiState.value = PaymentUiState.Success(mapper.toUiModel(transaction))
                 },
                 onFailure = { error ->
@@ -133,6 +150,7 @@ class PaymentViewModel @Inject constructor(
     }
 
     fun resetState() {
+        _instalmentSummary.value = null
         _uiState.value = PaymentUiState.Idle
     }
 }

@@ -19,8 +19,8 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Novo Pagamento"
             android:paddingTop="30dp"
+            app:title="Novo Pagamento"
             app:titleTextAppearance="@style/TextAppearance.App.Toolbar"
             app:titleTextColor="@color/on_surface" />
 
@@ -81,7 +81,7 @@
                             android:id="@+id/et_amount"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="numberDecimal"
+                            android:inputType="number"
                             android:paddingTop="12dp"
                             android:paddingBottom="12dp"
                             android:textColor="@color/on_surface"
@@ -95,51 +95,75 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
+                        android:orientation="vertical"
                         android:visibility="gone">
 
+                        <!-- Row: label + input field -->
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
 
-                            <TextView
-                                android:layout_width="wrap_content"
+                            <LinearLayout
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:text="Parcelas"
-                                android:textColor="@color/on_surface"
-                                android:textSize="14sp" />
+                                android:layout_weight="1"
+                                android:orientation="vertical">
 
-                            <TextView
-                                android:layout_width="wrap_content"
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Parcelas"
+                                    android:textColor="@color/on_surface"
+                                    android:textSize="14sp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="Mínimo R$ 10,00 para parcelar"
+                                    android:textColor="@color/on_surface_variant"
+                                    android:textSize="12sp" />
+
+                            </LinearLayout>
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/til_installments"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                android:layout_width="100dp"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="Mínimo R$ 10,00 para parcelar"
-                                android:textColor="@color/on_surface_variant"
-                                android:textSize="12sp" />
+                                app:endIconMode="clear_text"
+                                app:endIconTint="@color/on_surface_variant">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/et_installments"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center"
+                                    android:inputType="number"
+                                    android:textColor="@color/on_surface"
+                                    android:textSize="16sp" />
+
+                            </com.google.android.material.textfield.TextInputLayout>
 
                         </LinearLayout>
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/til_installments"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                            android:layout_width="100dp"
+                        <!--
+                            Per-instalment value shown in real time as the operator types.
+                            e.g. "12x de R$ 50,00"
+                            Visibility controlled by PaymentFragment via instalmentSummary StateFlow.
+                        -->
+                        <TextView
+                            android:id="@+id/tv_instalment_summary"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            app:endIconMode="clear_text"
-                            app:endIconTint="@color/on_surface_variant">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_installments"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:gravity="center"
-                                android:inputType="number"
-                                android:textColor="@color/on_surface"
-                                android:textSize="16sp" />
-
-                        </com.google.android.material.textfield.TextInputLayout>
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/primary"
+                            android:textSize="13sp"
+                            android:visibility="gone"
+                            tools:text="12x de R$ 50,00"
+                            tools:visibility="visible" />
 
                     </LinearLayout>
 
@@ -161,7 +185,7 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/card_amount" />
 
-            <!-- ── Payment method buttons (selection, not submission) ──────── -->
+            <!-- ── Payment method buttons ─────────────────────────────────── -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/group_payment_buttons"
                 android:layout_width="match_parent"
@@ -229,7 +253,7 @@
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- ── Confirm button — appears after method is selected ──────── -->
+            <!-- ── Confirm button ─────────────────────────────────────────── -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_confirm"
                 style="@style/Widget.MaterialComponents.Button"
