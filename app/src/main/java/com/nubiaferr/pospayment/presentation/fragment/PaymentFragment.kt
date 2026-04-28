@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -26,7 +27,8 @@ import kotlinx.coroutines.launch
  *    Selecting Credit reveals the instalment field. No payment is triggered yet.
  * 2. Operator taps "Confirmar pagamento" to submit.
  *
- * Inputs are cleared automatically whenever the screen returns to Idle.
+ * This Fragment contains zero validation logic or business constants —
+ * it passes raw strings to [PaymentViewModel] and renders whatever state it receives.
  */
 @AndroidEntryPoint
 class PaymentFragment : Fragment() {
@@ -51,6 +53,7 @@ class PaymentFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         observeUiState()
         setupClickListeners()
+        setupInputValidation()
     }
 
     private fun observeUiState() {
@@ -58,11 +61,12 @@ class PaymentFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     when (state) {
-                        is PaymentUiState.Idle         -> showIdle()
-                        is PaymentUiState.Loading      -> showLoading()
-                        is PaymentUiState.AwaitingCard -> showAwaitingCard()
-                        is PaymentUiState.Success      -> navigateToReceipt(state)
-                        is PaymentUiState.Error        -> showError(state)
+                        is PaymentUiState.Idle            -> showIdle()
+                        is PaymentUiState.Loading         -> showLoading()
+                        is PaymentUiState.AwaitingCard    -> showAwaitingCard()
+                        is PaymentUiState.ValidationError -> showValidationError(state)
+                        is PaymentUiState.Success         -> navigateToReceipt(state)
+                        is PaymentUiState.Error           -> showError(state)
                     }
                 }
             }
@@ -70,13 +74,11 @@ class PaymentFragment : Fragment() {
     }
 
     private fun setupClickListeners() {
-        // Method selection — just updates UI, does NOT submit
         binding.btnCredit.setOnClickListener  { selectMethod(PaymentMethod.CREDIT) }
         binding.btnDebit.setOnClickListener   { selectMethod(PaymentMethod.DEBIT) }
         binding.btnPix.setOnClickListener     { selectMethod(PaymentMethod.PIX) }
         binding.btnVoucher.setOnClickListener { selectMethod(PaymentMethod.VOUCHER) }
 
-        // Confirm button — submits the payment
         binding.btnConfirm.setOnClickListener { submitPayment() }
 
         binding.btnRetry.setOnClickListener {
@@ -85,51 +87,40 @@ class PaymentFragment : Fragment() {
         }
     }
 
+    private fun setupInputValidation() {
+        // Clear field error as soon as the user starts editing
+        binding.etAmount.doAfterTextChanged {
+            binding.tilAmount.error = null
+        }
+    }
+
     private fun selectMethod(method: PaymentMethod) {
         selectedMethod = method
 
-        // Highlight the selected button, reset the others
-        val buttons = listOf(
+        listOf(
             PaymentMethod.CREDIT  to binding.btnCredit,
             PaymentMethod.DEBIT   to binding.btnDebit,
             PaymentMethod.PIX     to binding.btnPix,
             PaymentMethod.VOUCHER to binding.btnVoucher,
-        )
-        buttons.forEach { (m, btn) ->
-            btn.isSelected = (m == method)
-        }
+        ).forEach { (m, btn) -> btn.isSelected = (m == method) }
 
-        // Show instalment field only for credit
         val isCredit = method == PaymentMethod.CREDIT
         binding.layoutInstallments.isVisible = isCredit
         if (!isCredit) binding.etInstallments.text?.clear()
 
-        // Reveal the confirm button once a method is chosen
         binding.btnConfirm.isVisible = true
     }
 
+    /**
+     * Passes raw strings directly to the ViewModel — no parsing or validation here.
+     */
     private fun submitPayment() {
         val method = selectedMethod ?: return
-
-        val amount = binding.etAmount.text?.toString()?.toDoubleOrNull()
-        if (amount == null || amount <= 0) {
-            binding.tilAmount.error = "Informe um valor válido"
-            return
-        }
-        binding.tilAmount.error = null
-
-        val installments = binding.etInstallments.text
-            ?.toString()
-            ?.toIntOrNull()
-            ?.coerceAtLeast(1)
-            ?: 1
-
         viewModel.processPayment(
-            amount = amount,
+            rawAmount = binding.etAmount.text?.toString().orEmpty(),
             method = method,
-            installments = installments
+            rawInstallments = binding.etInstallments.text?.toString().orEmpty()
         )
-
         binding.btnConfirm.isVisible = false
     }
 
@@ -155,6 +146,13 @@ class PaymentFragment : Fragment() {
         binding.layoutLoading.isVisible = true
         binding.cardAmount.isVisible = false
         binding.groupPaymentButtons.isVisible = false
+    }
+
+    private fun showValidationError(state: PaymentUiState.ValidationError) {
+        // Field-level error — keep the form visible so the operator can correct it
+        binding.tilAmount.error = state.message
+        binding.btnConfirm.isVisible = true
+        binding.layoutLoading.isVisible = false
     }
 
     private fun showError(state: PaymentUiState.Error) {
