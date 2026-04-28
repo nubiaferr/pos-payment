@@ -1,5 +1,6 @@
 package com.nubiaferr.pospayment.presentation.viewmodel
 
+import com.nubiaferr.pospayment.domain.exception.InstalmentNotAllowedException
 import com.nubiaferr.pospayment.domain.model.Payment
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import com.nubiaferr.pospayment.domain.model.Transaction
@@ -289,6 +290,146 @@ class PaymentViewModelTest {
             assertNull(viewModel.instalmentsError.value)
             assertNull(viewModel.instalmentSummary.value)
         }
+
+// ── isConfirmEnabled ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `initial isConfirmEnabled is false`() = runTest {
+        assertFalse(viewModel.isConfirmEnabled.value)
+    }
+
+    @Test
+    fun `given no method selected and valid amount, when onInputChanged, then isConfirmEnabled is false`() =
+        runTest {
+            every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
+            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
+                1
+            )
+
+            viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "")
+
+            assertFalse(viewModel.isConfirmEnabled.value)
+        }
+
+    @Test
+    fun `given method selected and valid amount, when onInputChanged, then isConfirmEnabled is true`() =
+        runTest {
+            every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
+            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
+                1
+            )
+
+            viewModel.onMethodSelected(PaymentMethod.DEBIT, rawAmount = 100.0, rawInstalments = "")
+
+            assertTrue(viewModel.isConfirmEnabled.value)
+        }
+
+    @Test
+    fun `given method selected and zero amount, when onInputChanged, then isConfirmEnabled is false`() =
+        runTest {
+            every { validator.validateAmount(0.0) } returns AmountValidationResult.Invalid("O valor deve ser maior que zero")
+
+            viewModel.onMethodSelected(PaymentMethod.PIX, rawAmount = 0.0, rawInstalments = "")
+
+            assertFalse(viewModel.isConfirmEnabled.value)
+        }
+
+    @Test
+    fun `given instalments error, when onInputChanged, then isConfirmEnabled is false`() = runTest {
+        every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
+        every { validator.validateInstallments("13") } returns
+                InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+
+        viewModel.onMethodSelected(PaymentMethod.CREDIT, rawAmount = 100.0, rawInstalments = "13")
+
+        assertFalse(viewModel.isConfirmEnabled.value)
+    }
+
+    @Test
+    fun `given instalments error is corrected, when onInputChanged, then isConfirmEnabled becomes true`() =
+        runTest {
+            every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
+            every { validator.validateInstallments("13") } returns
+                    InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+            every { validator.validateInstallments("3") } returns InstalmentsValidationResult.Valid(
+                3
+            )
+
+            viewModel.onMethodSelected(
+                PaymentMethod.CREDIT,
+                rawAmount = 100.0,
+                rawInstalments = "13"
+            )
+            assertFalse(viewModel.isConfirmEnabled.value)
+
+            viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "3")
+            assertTrue(viewModel.isConfirmEnabled.value)
+        }
+
+    @Test
+    fun `when resetState called, then isConfirmEnabled is false`() = runTest {
+        every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
+        every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(1)
+        viewModel.onMethodSelected(PaymentMethod.PIX, rawAmount = 100.0, rawInstalments = "")
+        assertTrue(viewModel.isConfirmEnabled.value)
+
+        viewModel.resetState()
+
+        assertFalse(viewModel.isConfirmEnabled.value)
+    }
+
+// ── onMethodSelected ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `given method selected, when onMethodSelected, then selectedMethod emits that method`() =
+        runTest {
+            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
+                1
+            )
+
+            viewModel.onMethodSelected(PaymentMethod.PIX, rawAmount = 40.0, rawInstalments = "")
+
+            assertEquals(PaymentMethod.PIX, viewModel.selectedMethod.value)
+        }
+
+    @Test
+    fun `given credit selected with amount above minimum, when onMethodSelected, then instalmentInputVisible is true immediately`() =
+        runTest {
+            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
+                1
+            )
+
+            viewModel.onMethodSelected(PaymentMethod.CREDIT, rawAmount = 40.0, rawInstalments = "")
+
+            assertTrue(viewModel.instalmentInputVisible.value)
+        }
+
+    @Test
+    fun `given credit selected with amount below minimum, when onMethodSelected, then instalmentInputVisible is false immediately`() =
+        runTest {
+            viewModel.onMethodSelected(PaymentMethod.CREDIT, rawAmount = 5.0, rawInstalments = "")
+
+            assertFalse(viewModel.instalmentInputVisible.value)
+        }
+
+    @Test
+    fun `given debit selected, when onMethodSelected, then selectedMethod is DEBIT`() = runTest {
+        every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(1)
+
+        viewModel.onMethodSelected(PaymentMethod.DEBIT, rawAmount = 40.0, rawInstalments = "")
+
+        assertEquals(PaymentMethod.DEBIT, viewModel.selectedMethod.value)
+    }
+
+    @Test
+    fun `when resetState called, then selectedMethod is null`() = runTest {
+        every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(1)
+        viewModel.onMethodSelected(PaymentMethod.PIX, rawAmount = 40.0, rawInstalments = "")
+
+        viewModel.resetState()
+
+        assertNull(viewModel.selectedMethod.value)
+    }
 
 // ── onInputChanged — instalmentInputVisible ────────────────────────────────
 

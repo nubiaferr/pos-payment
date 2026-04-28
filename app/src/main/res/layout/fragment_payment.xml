@@ -273,7 +273,7 @@
                 android:layout_marginTop="24dp"
                 android:text="Confirmar pagamento"
                 android:textSize="15sp"
-                android:visibility="gone"
+                android:enabled="false"
                 app:cornerRadius="12dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"

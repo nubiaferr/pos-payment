@@ -27,7 +27,6 @@ class PaymentFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: PaymentViewModel by viewModels()
-    private var selectedMethod: PaymentMethod? = null
     private lateinit var moneyWatcher: MoneyTextWatcher
 
     override fun onCreateView(
@@ -43,6 +42,8 @@ class PaymentFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupMoneyInput()
         observeUiState()
+        observeSelectedMethod()
+        observeConfirmEnabled()
         observeInstalmentInputVisible()
         observeInstalmentSummary()
         observeInstalmentsError()
@@ -86,21 +87,48 @@ class PaymentFragment : Fragment() {
     }
 
     /**
-     * Reactively controls the instalment section when Credit is selected.
-     *
-     * - amount >= R$ 10,00 → shows [til_installments], hides [tv_installments_hint]
-     * - amount <  R$ 10,00 → hides [til_installments], shows [tv_installments_hint]
-     *
-     * The outer [layout_installments] is still toggled by [selectMethod] —
-     * this observer only runs when the layout is already visible (Credit selected).
+     * Observes the selected payment method and updates button highlight + instalment
+     * section visibility reactively — including on config changes and when switching
+     * methods without changing the amount.
      */
+    private fun observeSelectedMethod() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.selectedMethod.collect { method ->
+                    // Highlight the active button
+                    listOf(
+                        PaymentMethod.CREDIT  to binding.btnCredit,
+                        PaymentMethod.DEBIT   to binding.btnDebit,
+                        PaymentMethod.PIX     to binding.btnPix,
+                        PaymentMethod.VOUCHER to binding.btnVoucher,
+                    ).forEach { (m, btn) -> btn.isSelected = (m == method) }
+
+                    val isCredit = method == PaymentMethod.CREDIT
+                    binding.layoutInstallments.isVisible = isCredit
+
+                    if (!isCredit) {
+                        binding.etInstallments.text?.clear()
+                        binding.tvInstalmentSummary.isVisible = false
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeConfirmEnabled() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.isConfirmEnabled.collect { enabled ->
+                    binding.btnConfirm.isEnabled = enabled
+                }
+            }
+        }
+    }
+
     private fun observeInstalmentInputVisible() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.instalmentInputVisible.collect { inputVisible ->
-                    // No guard here — layout_installments is already gone for non-Credit methods.
-                    // Removing the guard ensures the correct state is applied immediately
-                    // when the user switches TO Credit without changing the amount.
                     binding.layoutInstalmentInput.isVisible = inputVisible
                     binding.tvInstalmentsHint.isVisible = !inputVisible
                     if (!inputVisible) {
@@ -146,37 +174,20 @@ class PaymentFragment : Fragment() {
     }
 
     private fun selectMethod(method: PaymentMethod) {
-        selectedMethod = method
-
-        listOf(
-            PaymentMethod.CREDIT  to binding.btnCredit,
-            PaymentMethod.DEBIT   to binding.btnDebit,
-            PaymentMethod.PIX     to binding.btnPix,
-            PaymentMethod.VOUCHER to binding.btnVoucher,
-        ).forEach { (m, btn) -> btn.isSelected = (m == method) }
-
-        val isCredit = method == PaymentMethod.CREDIT
-        // Show the instalment section container — the inner views are
-        // controlled reactively by observeInstalmentInputVisible()
-        binding.layoutInstallments.isVisible = isCredit
-        if (!isCredit) {
-            binding.etInstallments.text?.clear()
-            binding.tvInstalmentSummary.isVisible = false
-        }
-
-        binding.btnConfirm.isVisible = true
-        // Trigger an immediate evaluation with the current amount
-        notifyInputChanged()
+        viewModel.onMethodSelected(
+            method = method,
+            rawAmount = moneyWatcher.rawAmount,
+            rawInstalments = binding.etInstallments.text?.toString().orEmpty()
+        )
     }
 
     private fun submitPayment() {
-        val method = selectedMethod ?: return
+        val method = viewModel.selectedMethod.value ?: return
         viewModel.processPayment(
             rawAmount = moneyWatcher.rawAmount,
             method = method,
             rawInstallments = binding.etInstallments.text?.toString().orEmpty()
         )
-        binding.btnConfirm.isVisible = false
     }
 
     // ── State renderers ────────────────────────────────────────────────────────
@@ -186,6 +197,7 @@ class PaymentFragment : Fragment() {
         binding.groupPaymentButtons.isVisible = true
         binding.layoutLoading.isVisible = false
         binding.cardError.isVisible = false
+        binding.btnConfirm.isVisible = true
     }
 
     private fun showLoading() {
@@ -228,20 +240,11 @@ class PaymentFragment : Fragment() {
     }
 
     private fun clearInputs() {
-        selectedMethod = null
         binding.etAmount.text?.clear()
         binding.etInstallments.text?.clear()
         binding.tilAmount.error = null
         binding.tilInstallments.error = null
         binding.tvInstalmentSummary.isVisible = false
-        binding.layoutInstallments.isVisible = false
-        binding.btnConfirm.isVisible = false
-        listOf(
-            binding.btnCredit,
-            binding.btnDebit,
-            binding.btnPix,
-            binding.btnVoucher
-        ).forEach { it.isSelected = false }
     }
 
     override fun onDestroyView() {

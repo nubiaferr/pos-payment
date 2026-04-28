@@ -64,6 +64,21 @@ class PaymentViewModel @Inject constructor(
     private val _instalmentInputVisible = MutableStateFlow(false)
     val instalmentInputVisible: StateFlow<Boolean> = _instalmentInputVisible.asStateFlow()
 
+    /**
+     * The currently selected payment method.
+     * Kept in the ViewModel so the Fragment can observe and highlight the
+     * correct button reactively — including on config changes.
+     */
+    private val _selectedMethod = MutableStateFlow<PaymentMethod?>(null)
+    val selectedMethod: StateFlow<PaymentMethod?> = _selectedMethod.asStateFlow()
+
+    /**
+     * Whether the confirm button should be enabled.
+     * True when a method is selected, amount is valid, and there are no instalment errors.
+     */
+    private val _isConfirmEnabled = MutableStateFlow(false)
+    val isConfirmEnabled: StateFlow<Boolean> = _isConfirmEnabled.asStateFlow()
+
     private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
 
     /**
@@ -74,14 +89,28 @@ class PaymentViewModel @Inject constructor(
      * - [instalmentSummary] with the per-instalment breakdown
      * - [instalmentsError] when the instalment count exceeds the maximum
      */
+    /**
+     * Called when the operator selects a payment method.
+     * Updates [selectedMethod] and triggers an immediate input evaluation
+     * so [instalmentInputVisible] reflects the current amount without
+     * requiring the operator to change the value.
+     */
+    fun onMethodSelected(method: PaymentMethod, rawAmount: Double, rawInstalments: String) {
+        _selectedMethod.value = method
+        onInputChanged(rawAmount, rawInstalments)
+    }
+
     fun onInputChanged(rawAmount: Double, rawInstalments: String) {
         val meetsMinimum = rawAmount >= CreditPaymentStrategy.MIN_INSTALMENT_AMOUNT
         _instalmentInputVisible.value = meetsMinimum
 
-        // If amount drops below minimum, clear instalment state
         if (!meetsMinimum) {
             _instalmentSummary.value = null
             _instalmentsError.value = null
+            _isConfirmEnabled.value = evaluateConfirmEnabled(
+                rawAmount = rawAmount,
+                instalmentsError = null
+            )
             return
         }
 
@@ -101,6 +130,26 @@ class PaymentViewModel @Inject constructor(
                 }
             }
         }
+
+        _isConfirmEnabled.value = evaluateConfirmEnabled(
+            rawAmount = rawAmount,
+            instalmentsError = _instalmentsError.value
+        )
+    }
+
+    /**
+     * Returns true when the form is in a submittable state:
+     * - A method is selected
+     * - Amount is positive and within limits
+     * - No instalment errors
+     */
+    private fun evaluateConfirmEnabled(
+        rawAmount: Double,
+        instalmentsError: String?
+    ): Boolean {
+        if (_selectedMethod.value == null) return false
+        if (instalmentsError != null) return false
+        return validator.validateAmount(rawAmount) is AmountValidationResult.Valid
     }
 
     /**
@@ -190,9 +239,11 @@ class PaymentViewModel @Inject constructor(
     }
 
     fun resetState() {
+        _selectedMethod.value = null
         _instalmentSummary.value = null
         _instalmentsError.value = null
         _instalmentInputVisible.value = false
+        _isConfirmEnabled.value = false
         _uiState.value = PaymentUiState.Idle
     }
 }
