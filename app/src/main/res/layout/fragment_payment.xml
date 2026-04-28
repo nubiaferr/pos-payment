@@ -213,11 +213,14 @@
                     android:layout_height="56dp"
                     android:layout_marginEnd="8dp"
                     android:text="Crédito"
+                    android:textColor="@color/color_payment_method_button_content"
                     android:textSize="14sp"
+                    app:backgroundTint="@color/color_payment_method_button_bg"
                     app:cornerRadius="12dp"
                     app:layout_constraintEnd_toStartOf="@id/btn_debit"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
+                    app:strokeColor="@color/color_payment_method_button_content"
                     app:strokeWidth="1dp" />
 
                 <com.google.android.material.button.MaterialButton
@@ -226,11 +229,14 @@
                     android:layout_width="0dp"
                     android:layout_height="56dp"
                     android:text="Débito"
+                    android:textColor="@color/color_payment_method_button_content"
                     android:textSize="14sp"
+                    app:backgroundTint="@color/color_payment_method_button_bg"
                     app:cornerRadius="12dp"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toEndOf="@id/btn_credit"
                     app:layout_constraintTop_toTopOf="parent"
+                    app:strokeColor="@color/color_payment_method_button_content"
                     app:strokeWidth="1dp" />
 
                 <com.google.android.material.button.MaterialButton
@@ -241,11 +247,14 @@
                     android:layout_marginTop="10dp"
                     android:layout_marginEnd="8dp"
                     android:text="Pix"
+                    android:textColor="@color/color_payment_method_button_content"
                     android:textSize="14sp"
+                    app:backgroundTint="@color/color_payment_method_button_bg"
                     app:cornerRadius="12dp"
                     app:layout_constraintEnd_toStartOf="@id/btn_voucher"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/btn_credit"
+                    app:strokeColor="@color/color_payment_method_button_content"
                     app:strokeWidth="1dp" />
 
                 <com.google.android.material.button.MaterialButton
@@ -255,11 +264,14 @@
                     android:layout_height="56dp"
                     android:layout_marginTop="10dp"
                     android:text="Voucher"
+                    android:textColor="@color/color_payment_method_button_content"
                     android:textSize="14sp"
+                    app:backgroundTint="@color/color_payment_method_button_bg"
                     app:cornerRadius="12dp"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toEndOf="@id/btn_pix"
                     app:layout_constraintTop_toBottomOf="@id/btn_debit"
+                    app:strokeColor="@color/color_payment_method_button_content"
                     app:strokeWidth="1dp" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>

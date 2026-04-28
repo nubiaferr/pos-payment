@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Text/icon color selector for payment method buttons.
+    Selected state uses on_primary (white), default uses primary color.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:color="@color/on_primary" />
+    <item android:color="@color/primary" />
+</selector>
