@@ -3,7 +3,6 @@ package com.nubiaferr.pospayment.data.repository
 import com.nubiaferr.pospayment.data.local.dao.PaymentDao
 import com.nubiaferr.pospayment.data.local.entity.TransactionEntity
 import com.nubiaferr.pospayment.data.mapper.PaymentDataMapper
-import com.nubiaferr.pospayment.data.remote.service.FakePaymentService
 import com.nubiaferr.pospayment.data.remote.service.PaymentService
 import com.nubiaferr.pospayment.domain.exception.TransactionNotCancellableException
 import com.nubiaferr.pospayment.domain.model.Payment
