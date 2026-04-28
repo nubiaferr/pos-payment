@@ -5,6 +5,8 @@ A production-grade Android POS payment module built with Clean Architecture, MVV
 ---
 
 ## Architecture overview
+<img width="1400" height="960" alt="image" src="https://github.com/user-attachments/assets/0e010c27-b85d-4dae-a4d2-8e54ec606cc3" />
+
 
 The project is organized in three strict layers. The dependency rule is enforced throughout: **arrows always point inward toward Domain**. No layer imports anything from a layer further out.
 
