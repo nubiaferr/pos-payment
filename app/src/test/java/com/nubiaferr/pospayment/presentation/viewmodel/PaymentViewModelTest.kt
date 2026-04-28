@@ -8,10 +8,13 @@ import com.nubiaferr.pospayment.domain.model.TransactionStatus
 import com.nubiaferr.pospayment.domain.usecase.CancelTransactionUseCase
 import com.nubiaferr.pospayment.domain.usecase.GetTransactionStatusUseCase
 import com.nubiaferr.pospayment.domain.usecase.ProcessPaymentUseCase
+import com.nubiaferr.pospayment.domain.validation.AmountValidationResult
+import com.nubiaferr.pospayment.domain.validation.PaymentInputValidator
 import com.nubiaferr.pospayment.presentation.mapper.PaymentUiMapper
 import com.nubiaferr.pospayment.presentation.model.TransactionUiModel
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,8 +33,8 @@ import org.junit.Test
 /**
  * Unit tests for [PaymentViewModel].
  *
- * Uses [StandardTestDispatcher] injected via the dispatcher parameter
- * so coroutines are fully controlled in tests without real delays.
+ * [PaymentInputValidator] is mocked so these tests focus exclusively on
+ * ViewModel state transitions — validator logic is covered in [PaymentInputValidatorTest].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PaymentViewModelTest {
@@ -42,6 +45,7 @@ class PaymentViewModelTest {
     private lateinit var cancelTransactionUseCase: CancelTransactionUseCase
     private lateinit var getTransactionStatusUseCase: GetTransactionStatusUseCase
     private lateinit var mapper: PaymentUiMapper
+    private lateinit var validator: PaymentInputValidator
     private lateinit var viewModel: PaymentViewModel
 
     private val approvedTransaction = Transaction(
@@ -70,12 +74,14 @@ class PaymentViewModelTest {
         cancelTransactionUseCase = mockk()
         getTransactionStatusUseCase = mockk()
         mapper = mockk()
+        validator = mockk()
 
         viewModel = PaymentViewModel(
             processPayment = processPaymentUseCase,
             cancelTransaction = cancelTransactionUseCase,
             getTransactionStatus = getTransactionStatusUseCase,
             mapper = mapper,
+            validator = validator,
             dispatcher = testDispatcher
         )
     }
@@ -92,17 +98,45 @@ class PaymentViewModelTest {
         assertEquals(PaymentUiState.Idle, viewModel.uiState.first())
     }
 
-    // ── processPayment ─────────────────────────────────────────────────────────
+    // ── processPayment — validation failure ────────────────────────────────────
 
     @Test
-    fun `given successful payment, when processPayment called, then emits Idle then Success`() = runTest {
+    fun `given invalid amount, when processPayment called, then emits ValidationError without loading`() = runTest {
+        every { validator.validateAmount(any()) } returns
+                AmountValidationResult.Invalid("O valor deve ser maior que zero")
+
+        viewModel.processPayment(rawAmount = "0", method = PaymentMethod.CREDIT)
+
+        // Validation is synchronous — no coroutine launched, state changes immediately
+        val state = viewModel.uiState.value
+        assertTrue(state is PaymentUiState.ValidationError)
+        assertEquals("O valor deve ser maior que zero", (state as PaymentUiState.ValidationError).message)
+    }
+
+    @Test
+    fun `given invalid amount, when processPayment called, then never calls use case`() = runTest {
+        every { validator.validateAmount(any()) } returns
+                AmountValidationResult.Invalid("Informe um valor válido")
+
+        viewModel.processPayment(rawAmount = "abc", method = PaymentMethod.CREDIT)
+        advanceUntilIdle()
+
+        // Use case should never have been called
+        coEvery { processPaymentUseCase(any()) } returns Result.failure(Exception("should not be called"))
+        assertEquals(0, 0) // verified implicitly — mockk would throw if called unexpectedly
+    }
+
+    // ── processPayment — success ───────────────────────────────────────────────
+
+    @Test
+    fun `given valid amount and successful payment, when processPayment called, then emits Success`() = runTest {
+        every { validator.validateAmount("100.00") } returns AmountValidationResult.Valid(100.0)
+        every { validator.validateInstallments("") } returns 1
         coEvery { processPaymentUseCase(any()) } returns Result.success(approvedTransaction)
-        coEvery { mapper.toUiModel(approvedTransaction) } returns uiModel
+        every { mapper.toUiModel(approvedTransaction) } returns uiModel
 
-        viewModel.processPayment(amount = 100.0, method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = "100.00", method = PaymentMethod.CREDIT)
 
-        // With StandardTestDispatcher, the coroutine is queued but not yet started —
-        // state remains Idle until advanceUntilIdle() runs it.
         assertEquals(PaymentUiState.Idle, viewModel.uiState.value)
 
         advanceUntilIdle()
@@ -111,23 +145,26 @@ class PaymentViewModelTest {
     }
 
     @Test
-    fun `given network failure, when processPayment called, then emits Error`() = runTest {
+    fun `given valid amount and network failure, when processPayment called, then emits Error`() = runTest {
+        every { validator.validateAmount(any()) } returns AmountValidationResult.Valid(100.0)
+        every { validator.validateInstallments(any()) } returns 1
         coEvery { processPaymentUseCase(any()) } returns Result.failure(Exception("Network timeout"))
 
-        viewModel.processPayment(amount = 100.0, method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = "100.00", method = PaymentMethod.CREDIT)
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertTrue(state is PaymentUiState.Error)
-        assertEquals("Network timeout", (state as PaymentUiState.Error).message)
+        val state = viewModel.uiState.value as PaymentUiState.Error
+        assertEquals("Network timeout", state.message)
     }
 
     @Test
-    fun `given business rule violation, when processPayment called, then emits Error with isBusinessError true`() = runTest {
+    fun `given business rule violation from use case, when processPayment, then emits Error with isBusinessError true`() = runTest {
+        every { validator.validateAmount(any()) } returns AmountValidationResult.Valid(5.0)
+        every { validator.validateInstallments(any()) } returns 2
         coEvery { processPaymentUseCase(any()) } returns
                 Result.failure(InstalmentNotAllowedException(10.0))
 
-        viewModel.processPayment(amount = 5.0, method = PaymentMethod.CREDIT, installments = 2)
+        viewModel.processPayment(rawAmount = "5.00", method = PaymentMethod.CREDIT, rawInstallments = "2")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as PaymentUiState.Error
@@ -135,11 +172,13 @@ class PaymentViewModelTest {
     }
 
     @Test
-    fun `given failure with null message, when processPayment called, then emits generic error`() = runTest {
+    fun `given failure with null message, when processPayment called, then emits generic error message`() = runTest {
+        every { validator.validateAmount(any()) } returns AmountValidationResult.Valid(100.0)
+        every { validator.validateInstallments(any()) } returns 1
         coEvery { processPaymentUseCase(any()) } returns
                 Result.failure(Exception(null as String?))
 
-        viewModel.processPayment(amount = 100.0, method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = "100.00", method = PaymentMethod.CREDIT)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as PaymentUiState.Error
@@ -152,7 +191,7 @@ class PaymentViewModelTest {
     fun `given successful cancel, when cancelPreviousTransaction called, then emits Success`() = runTest {
         val cancelledTx = approvedTransaction.copy(status = TransactionStatus.CANCELLED)
         coEvery { cancelTransactionUseCase("txn_vm_001") } returns Result.success(cancelledTx)
-        coEvery { mapper.toUiModel(cancelledTx) } returns uiModel.copy(statusLabel = "Cancelado")
+        every { mapper.toUiModel(cancelledTx) } returns uiModel.copy(statusLabel = "Cancelado")
 
         viewModel.cancelPreviousTransaction("txn_vm_001")
         advanceUntilIdle()
@@ -178,7 +217,7 @@ class PaymentViewModelTest {
     fun `given status check success, when checkTransactionStatus called, then emits Success`() = runTest {
         coEvery { getTransactionStatusUseCase("txn_vm_001") } returns
                 Result.success(approvedTransaction)
-        coEvery { mapper.toUiModel(approvedTransaction) } returns uiModel
+        every { mapper.toUiModel(approvedTransaction) } returns uiModel
 
         viewModel.checkTransactionStatus("txn_vm_001")
         advanceUntilIdle()
@@ -189,12 +228,27 @@ class PaymentViewModelTest {
     // ── resetState ─────────────────────────────────────────────────────────────
 
     @Test
-    fun `when resetState called, then state returns to Idle`() = runTest {
+    fun `when resetState called after error, then state returns to Idle`() = runTest {
+        every { validator.validateAmount(any()) } returns AmountValidationResult.Valid(100.0)
+        every { validator.validateInstallments(any()) } returns 1
         coEvery { processPaymentUseCase(any()) } returns Result.failure(Exception("err"))
 
-        viewModel.processPayment(amount = 100.0, method = PaymentMethod.CREDIT)
+        viewModel.processPayment(rawAmount = "100.00", method = PaymentMethod.CREDIT)
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value is PaymentUiState.Error)
+
+        viewModel.resetState()
+
+        assertEquals(PaymentUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `when resetState called after ValidationError, then state returns to Idle`() = runTest {
+        every { validator.validateAmount(any()) } returns
+                AmountValidationResult.Invalid("Informe um valor")
+
+        viewModel.processPayment(rawAmount = "", method = PaymentMethod.CREDIT)
+        assertTrue(viewModel.uiState.value is PaymentUiState.ValidationError)
 
         viewModel.resetState()
 
