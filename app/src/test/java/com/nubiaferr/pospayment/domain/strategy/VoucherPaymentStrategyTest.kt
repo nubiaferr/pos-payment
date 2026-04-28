@@ -42,34 +42,22 @@ class VoucherPaymentStrategyTest {
     @Test
     fun `given valid payment, when executed, then delegates to repository`() = runTest {
         val payment = Payment(amount = 30.0, method = PaymentMethod.VOUCHER)
-        coEvery { repository.processVoucher(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { repository.processVoucher(payment) }
+        coVerify(exactly = 1) { repository.processPayment(payment) }
     }
 
     @Test
     fun `given repository returns failure, when executed, then propagates failure`() = runTest {
         val payment = Payment(amount = 30.0, method = PaymentMethod.VOUCHER)
-        coEvery { repository.processVoucher(payment) } returns Result.failure(Exception("Voucher network unavailable"))
+        coEvery { repository.processPayment(payment) } returns Result.failure(Exception("Voucher network unavailable"))
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isFailure)
         assertEquals("Voucher network unavailable", result.exceptionOrNull()?.message)
-    }
-
-    @Test
-    fun `given any payment, when executed, then never calls any other repository method`() = runTest {
-        val payment = Payment(amount = 30.0, method = PaymentMethod.VOUCHER)
-        coEvery { repository.processVoucher(payment) } returns Result.success(approvedTransaction)
-
-        strategy.execute(payment)
-
-        coVerify(exactly = 0) { repository.processCredit(any()) }
-        coVerify(exactly = 0) { repository.processDebit(any()) }
-        coVerify(exactly = 0) { repository.processPix(any()) }
     }
 }

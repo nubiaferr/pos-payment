@@ -9,10 +9,7 @@ import javax.inject.Inject
 /**
  * Strategy for credit card payments.
  *
- * Business rules enforced:
- * - Instalment plans (> 1x) require a minimum transaction amount of R$10.00.
- *
- * @property repository Data source for credit payment processing.
+ * Business rule: instalment plans (> 1x) require a minimum of R$ 10,00.
  */
 class CreditPaymentStrategy @Inject constructor(
     private val repository: PaymentRepository
@@ -22,11 +19,10 @@ class CreditPaymentStrategy @Inject constructor(
         if (payment.installments > 1 && payment.amount < MIN_INSTALMENT_AMOUNT) {
             return Result.failure(InstalmentNotAllowedException(MIN_INSTALMENT_AMOUNT))
         }
-        return repository.processCredit(payment)
+        return repository.processPayment(payment)
     }
 
     companion object {
-        /** Minimum amount in BRL required to enable instalment payments. */
         const val MIN_INSTALMENT_AMOUNT = 10.0
     }
 }

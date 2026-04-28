@@ -19,12 +19,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/**
- * Unit tests for [PaymentRepositoryImpl].
- *
- * Verifies the caching strategy, offline fallback, and cancellation guard.
- * [PaymentService] and [PaymentDao] are mocked — no real network or DB involved.
- */
 class PaymentRepositoryImplTest {
 
     private lateinit var service: PaymentService
@@ -35,9 +29,9 @@ class PaymentRepositoryImplTest {
     private val payment = Payment(amount = 100.0, method = PaymentMethod.CREDIT)
 
     private val responseDto = TransactionResponseDto(
-        id = "txn_repo_001",
+        id = "txn_001",
         status = "approved",
-        authCode = "AUTH_REPO",
+        authCode = "AUTH",
         amount = 10_000L,
         method = "credit",
         installments = 1,
@@ -46,21 +40,21 @@ class PaymentRepositoryImplTest {
     )
 
     private val approvedEntity = TransactionEntity(
-        id = "txn_repo_001",
+        id = "txn_001",
         amount = 10_000L,
         paymentMethod = "CREDIT",
         installments = 1,
         description = "",
         status = "APPROVED",
-        authCode = "AUTH_REPO",
+        authCode = "AUTH",
         timestamp = 1_700_000_000_000L
     )
 
     private val approvedTransaction = Transaction(
-        id = "txn_repo_001",
+        id = "txn_001",
         payment = payment,
         status = TransactionStatus.APPROVED,
-        authCode = "AUTH_REPO",
+        authCode = "AUTH",
         timestamp = 1_700_000_000_000L
     )
 
@@ -72,39 +66,39 @@ class PaymentRepositoryImplTest {
         repository = PaymentRepositoryImpl(service, dao, mapper)
     }
 
-    // ── processCredit — cache on success ──────────────────────────────────────
+    // ── processPayment ─────────────────────────────────────────────────────────
 
     @Test
-    fun `given service success, when processCredit, then caches transaction locally`() = runTest {
+    fun `given service success, when processPayment, then returns transaction`() = runTest {
         coEvery { mapper.toRequestDto(payment) } returns mockk()
         coEvery { service.processPayment(any()) } returns Result.success(responseDto)
         coEvery { mapper.toDomain(responseDto, payment) } returns approvedTransaction
         coEvery { mapper.toEntity(approvedTransaction) } returns approvedEntity
 
-        repository.processCredit(payment)
-
-        coVerify(exactly = 1) { dao.upsert(approvedEntity) }
-    }
-
-    @Test
-    fun `given service success, when processCredit, then returns transaction`() = runTest {
-        coEvery { mapper.toRequestDto(payment) } returns mockk()
-        coEvery { service.processPayment(any()) } returns Result.success(responseDto)
-        coEvery { mapper.toDomain(responseDto, payment) } returns approvedTransaction
-        coEvery { mapper.toEntity(approvedTransaction) } returns approvedEntity
-
-        val result = repository.processCredit(payment)
+        val result = repository.processPayment(payment)
 
         assertTrue(result.isSuccess)
         assertEquals(approvedTransaction, result.getOrNull())
     }
 
     @Test
-    fun `given service failure, when processCredit, then does not cache`() = runTest {
+    fun `given service success, when processPayment, then caches transaction locally`() = runTest {
+        coEvery { mapper.toRequestDto(payment) } returns mockk()
+        coEvery { service.processPayment(any()) } returns Result.success(responseDto)
+        coEvery { mapper.toDomain(responseDto, payment) } returns approvedTransaction
+        coEvery { mapper.toEntity(approvedTransaction) } returns approvedEntity
+
+        repository.processPayment(payment)
+
+        coVerify(exactly = 1) { dao.upsert(approvedEntity) }
+    }
+
+    @Test
+    fun `given service failure, when processPayment, then does not cache`() = runTest {
         coEvery { mapper.toRequestDto(payment) } returns mockk()
         coEvery { service.processPayment(any()) } returns Result.failure(Exception("Timeout"))
 
-        val result = repository.processCredit(payment)
+        val result = repository.processPayment(payment)
 
         assertTrue(result.isFailure)
         coVerify(exactly = 0) { dao.upsert(any()) }
@@ -113,11 +107,10 @@ class PaymentRepositoryImplTest {
     // ── cancelTransaction ──────────────────────────────────────────────────────
 
     @Test
-    fun `given transaction not in APPROVED state, when cancelTransaction, then returns TransactionNotCancellableException`() = runTest {
-        val pendingEntity = approvedEntity.copy(status = "PENDING")
-        coEvery { dao.getById("txn_repo_001") } returns pendingEntity
+    fun `given transaction not APPROVED, when cancelTransaction, then returns TransactionNotCancellableException`() = runTest {
+        coEvery { dao.getById("txn_001") } returns approvedEntity.copy(status = "PENDING")
 
-        val result = repository.cancelTransaction("txn_repo_001")
+        val result = repository.cancelTransaction("txn_001")
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is TransactionNotCancellableException)
@@ -125,27 +118,26 @@ class PaymentRepositoryImplTest {
     }
 
     @Test
-    fun `given approved transaction, when cancelTransaction, then calls service and caches`() = runTest {
+    fun `given approved transaction, when cancelTransaction, then calls service and caches result`() = runTest {
         val cancelDto = responseDto.copy(status = "cancelled")
         val cancelledTx = approvedTransaction.copy(status = TransactionStatus.CANCELLED)
+        val cancelledEntity = approvedEntity.copy(status = "CANCELLED")
 
-        coEvery { dao.getById("txn_repo_001") } returns approvedEntity
-        coEvery { service.cancelTransaction("txn_repo_001") } returns Result.success(cancelDto)
+        coEvery { dao.getById("txn_001") } returns approvedEntity
+        coEvery { service.cancelTransaction("txn_001") } returns Result.success(cancelDto)
         coEvery { mapper.toDomain(cancelDto, any()) } returns cancelledTx
-        coEvery { mapper.toEntity(cancelledTx) } returns approvedEntity.copy(status = "CANCELLED")
+        coEvery { mapper.toEntity(cancelledTx) } returns cancelledEntity
 
-        val result = repository.cancelTransaction("txn_repo_001")
+        val result = repository.cancelTransaction("txn_001")
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { service.cancelTransaction("txn_repo_001") }
-        coVerify(exactly = 1) { dao.upsert(any()) }
+        coVerify(exactly = 1) { service.cancelTransaction("txn_001") }
+        coVerify(exactly = 1) { dao.upsert(cancelledEntity) }
     }
 
     @Test
     fun `given transaction not found locally, when cancelTransaction, then returns failure`() = runTest {
         coEvery { dao.getById(any()) } returns null
-
-        // null means we don't know current status — assume cancellable, then fail on missing data
         coEvery { service.cancelTransaction(any()) } returns Result.success(responseDto)
 
         val result = repository.cancelTransaction("txn_not_found")
@@ -157,32 +149,31 @@ class PaymentRepositoryImplTest {
 
     @Test
     fun `given network available, when getTransactionStatus, then fetches from service and updates cache`() = runTest {
-        coEvery { service.getTransaction("txn_repo_001") } returns Result.success(responseDto)
-        coEvery { dao.getById("txn_repo_001") } returns approvedEntity
+        coEvery { service.getTransaction("txn_001") } returns Result.success(responseDto)
+        coEvery { dao.getById("txn_001") } returns approvedEntity
         coEvery { mapper.toDomain(responseDto, any()) } returns approvedTransaction
         coEvery { mapper.toEntity(approvedTransaction) } returns approvedEntity
 
-        val result = repository.getTransactionStatus("txn_repo_001")
+        val result = repository.getTransactionStatus("txn_001")
 
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { dao.upsert(approvedEntity) }
     }
 
     @Test
-    fun `given network unavailable and local cache exists, when getTransactionStatus, then returns cached transaction`() = runTest {
+    fun `given network unavailable and cache exists, when getTransactionStatus, then returns cached transaction`() = runTest {
         coEvery { service.getTransaction(any()) } returns Result.failure(Exception("No network"))
-        coEvery { dao.getById("txn_repo_001") } returns approvedEntity
+        coEvery { dao.getById("txn_001") } returns approvedEntity
 
-        val result = repository.getTransactionStatus("txn_repo_001")
+        val result = repository.getTransactionStatus("txn_001")
 
-        // Should succeed with cached data
         assertTrue(result.isSuccess)
         assertEquals(TransactionStatus.APPROVED, result.getOrNull()?.status)
-        coVerify(exactly = 0) { dao.upsert(any()) }   // no write on fallback path
+        coVerify(exactly = 0) { dao.upsert(any()) }
     }
 
     @Test
-    fun `given network unavailable and no local cache, when getTransactionStatus, then returns failure`() = runTest {
+    fun `given network unavailable and no cache, when getTransactionStatus, then returns failure`() = runTest {
         coEvery { service.getTransaction(any()) } returns Result.failure(Exception("No network"))
         coEvery { dao.getById(any()) } returns null
 

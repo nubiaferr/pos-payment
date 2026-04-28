@@ -44,18 +44,18 @@ class PixPaymentStrategyTest {
     @Test
     fun `given amount well within limit, when executed, then delegates to repository`() = runTest {
         val payment = Payment(amount = 1_000.0, method = PaymentMethod.PIX)
-        coEvery { repository.processPix(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { repository.processPix(payment) }
+        coVerify(exactly = 1) { repository.processPayment(payment) }
     }
 
     @Test
     fun `given very small amount, when executed, then delegates to repository`() = runTest {
         val payment = Payment(amount = 0.01, method = PaymentMethod.PIX)
-        coEvery { repository.processPix(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
@@ -67,12 +67,12 @@ class PixPaymentStrategyTest {
     @Test
     fun `given amount exactly at limit, when executed, then delegates to repository`() = runTest {
         val payment = Payment(amount = PixPaymentStrategy.PIX_MAX_AMOUNT, method = PaymentMethod.PIX)
-        coEvery { repository.processPix(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { repository.processPix(payment) }
+        coVerify(exactly = 1) { repository.processPayment(payment) }
     }
 
     // ── Boundary — just above limit ────────────────────────────────────────────
@@ -85,7 +85,7 @@ class PixPaymentStrategyTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is PixLimitExceededException)
-        coVerify(exactly = 0) { repository.processPix(any()) }
+        coVerify(exactly = 0) { repository.processPayment(any()) }
     }
 
     @Test
@@ -115,7 +115,7 @@ class PixPaymentStrategyTest {
     @Test
     fun `given valid amount and repository failure, when executed, then propagates failure`() = runTest {
         val payment = Payment(amount = 500.0, method = PaymentMethod.PIX)
-        coEvery { repository.processPix(payment) } returns Result.failure(Exception("Pix network error"))
+        coEvery { repository.processPayment(payment) } returns Result.failure(Exception("Pix network error"))
 
         val result = strategy.execute(payment)
 

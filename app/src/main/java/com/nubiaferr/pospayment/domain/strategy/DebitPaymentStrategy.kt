@@ -18,6 +18,6 @@ class DebitPaymentStrategy @Inject constructor(
 ) : PaymentStrategy {
 
     override suspend fun execute(payment: Payment): Result<Transaction> {
-        return repository.processDebit(payment)
+        return repository.processPayment(payment)
     }
 }

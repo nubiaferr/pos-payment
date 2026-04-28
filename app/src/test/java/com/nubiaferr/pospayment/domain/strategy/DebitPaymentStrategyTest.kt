@@ -42,18 +42,18 @@ class DebitPaymentStrategyTest {
     @Test
     fun `given any valid amount, when executed, then delegates to repository`() = runTest {
         val payment = Payment(amount = 50.0, method = PaymentMethod.DEBIT)
-        coEvery { repository.processDebit(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { repository.processDebit(payment) }
+        coVerify(exactly = 1) { repository.processPayment(payment) }
     }
 
     @Test
     fun `given very small amount, when executed, then delegates without restriction`() = runTest {
         val payment = Payment(amount = 0.01, method = PaymentMethod.DEBIT)
-        coEvery { repository.processDebit(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
@@ -63,7 +63,7 @@ class DebitPaymentStrategyTest {
     @Test
     fun `given large amount, when executed, then delegates without restriction`() = runTest {
         val payment = Payment(amount = 999_999.0, method = PaymentMethod.DEBIT)
-        coEvery { repository.processDebit(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
@@ -73,23 +73,11 @@ class DebitPaymentStrategyTest {
     @Test
     fun `given repository returns failure, when executed, then propagates failure`() = runTest {
         val payment = Payment(amount = 50.0, method = PaymentMethod.DEBIT)
-        coEvery { repository.processDebit(payment) } returns Result.failure(Exception("Card declined"))
+        coEvery { repository.processPayment(payment) } returns Result.failure(Exception("Card declined"))
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isFailure)
         assertEquals("Card declined", result.exceptionOrNull()?.message)
-    }
-
-    @Test
-    fun `given any payment, when executed, then never calls any other repository method`() = runTest {
-        val payment = Payment(amount = 50.0, method = PaymentMethod.DEBIT)
-        coEvery { repository.processDebit(payment) } returns Result.success(approvedTransaction)
-
-        strategy.execute(payment)
-
-        coVerify(exactly = 0) { repository.processCredit(any()) }
-        coVerify(exactly = 0) { repository.processPix(any()) }
-        coVerify(exactly = 0) { repository.processVoucher(any()) }
     }
 }

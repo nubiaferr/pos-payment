@@ -46,12 +46,12 @@ class CreditPaymentStrategyTest {
     @Test
     fun `given single instalment and any amount, when executed, then delegates to repository`() = runTest {
         val payment = Payment(amount = 5.0, method = PaymentMethod.CREDIT, installments = 1)
-        coEvery { repository.processCredit(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { repository.processCredit(payment) }
+        coVerify(exactly = 1) { repository.processPayment(payment) }
     }
 
     // ── Instalment boundary — below minimum ────────────────────────────────────
@@ -64,7 +64,7 @@ class CreditPaymentStrategyTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is InstalmentNotAllowedException)
-        coVerify(exactly = 0) { repository.processCredit(any()) }
+        coVerify(exactly = 0) { repository.processPayment(any()) }
     }
 
     @Test
@@ -86,12 +86,12 @@ class CreditPaymentStrategyTest {
             method = PaymentMethod.CREDIT,
             installments = 2
         )
-        coEvery { repository.processCredit(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { repository.processCredit(payment) }
+        coVerify(exactly = 1) { repository.processPayment(payment) }
     }
 
     // ── Instalment boundary — above minimum ───────────────────────────────────
@@ -99,12 +99,12 @@ class CreditPaymentStrategyTest {
     @Test
     fun `given 3 instalments and amount above minimum, when executed, then delegates to repository`() = runTest {
         val payment = Payment(amount = 150.0, method = PaymentMethod.CREDIT, installments = 3)
-        coEvery { repository.processCredit(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { repository.processCredit(payment) }
+        coVerify(exactly = 1) { repository.processPayment(payment) }
     }
 
     // ── Repository failure propagation ─────────────────────────────────────────
@@ -113,7 +113,7 @@ class CreditPaymentStrategyTest {
     fun `given valid payment and repository returns failure, when executed, then propagates failure`() = runTest {
         val payment = Payment(amount = 100.0, method = PaymentMethod.CREDIT)
         val exception = Exception("Acquirer timeout")
-        coEvery { repository.processCredit(payment) } returns Result.failure(exception)
+        coEvery { repository.processPayment(payment) } returns Result.failure(exception)
 
         val result = strategy.execute(payment)
 
@@ -138,7 +138,7 @@ class CreditPaymentStrategyTest {
     @Test
     fun `given 1 instalment and amount below minimum, when executed, then does not fail`() = runTest {
         val payment = Payment(amount = 1.0, method = PaymentMethod.CREDIT, installments = 1)
-        coEvery { repository.processCredit(payment) } returns Result.success(approvedTransaction)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
 

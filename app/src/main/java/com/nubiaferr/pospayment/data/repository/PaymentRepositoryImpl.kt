@@ -19,9 +19,6 @@ import javax.inject.Inject
  * - Every successful remote transaction is persisted locally for offline access.
  * - [getTransactionStatus] falls back to the local cache when the network is unavailable.
  * - [cancelTransaction] validates the current status before delegating to the API.
- * @property service Wraps API calls in [Result]. Injected as interface for testability.
- * @property dao     Room DAO for local transaction persistence.
- * @property mapper  Converts between DTOs, entities and domain models.
  */
 class PaymentRepositoryImpl @Inject constructor(
     private val service: PaymentService,
@@ -29,22 +26,21 @@ class PaymentRepositoryImpl @Inject constructor(
     private val mapper: PaymentDataMapper
 ) : PaymentRepository {
 
-    override suspend fun processCredit(payment: Payment): Result<Transaction> =
-        processAndCache(payment)
-
-    override suspend fun processDebit(payment: Payment): Result<Transaction> =
-        processAndCache(payment)
-
-    override suspend fun processPix(payment: Payment): Result<Transaction> =
-        processAndCache(payment)
-
-    override suspend fun processVoucher(payment: Payment): Result<Transaction> =
-        processAndCache(payment)
+    override suspend fun processPayment(payment: Payment): Result<Transaction> {
+        val dto = mapper.toRequestDto(payment)
+        return service.processPayment(dto).fold(
+            onSuccess = { responseDto ->
+                val transaction = mapper.toDomain(responseDto, payment)
+                dao.upsert(mapper.toEntity(transaction))
+                Result.success(transaction)
+            },
+            onFailure = { Result.failure(it) }
+        )
+    }
 
     override suspend fun cancelTransaction(transactionId: String): Result<Transaction> {
         val local = dao.getById(transactionId)
 
-        // Validate cancellability before hitting the network
         if (local != null && local.status != TransactionStatus.APPROVED.name) {
             return Result.failure(TransactionNotCancellableException(transactionId))
         }
@@ -77,7 +73,6 @@ class PaymentRepositoryImpl @Inject constructor(
             return Result.success(transaction)
         }
 
-        // Offline fallback: return cached data if available
         val cached = dao.getById(transactionId)
             ?: return Result.failure(Exception("Transaction $transactionId not found."))
 
@@ -86,22 +81,6 @@ class PaymentRepositoryImpl @Inject constructor(
 
     // ── Private helpers ────────────────────────────────────────────────────────
 
-    private suspend fun processAndCache(payment: Payment): Result<Transaction> {
-        val dto = mapper.toRequestDto(payment)
-        return service.processPayment(dto).fold(
-            onSuccess = { responseDto ->
-                val transaction = mapper.toDomain(responseDto, payment)
-                dao.upsert(mapper.toEntity(transaction))
-                Result.success(transaction)
-            },
-            onFailure = { Result.failure(it) }
-        )
-    }
-
-    /**
-     * Reconstructs the [Payment] domain model from a locally cached [TransactionEntity].
-     * Used when the repository needs to rehydrate a full [Transaction] from local storage.
-     */
     private fun TransactionEntity.toDomainPayment() = Payment(
         amount = amount / 100.0,
         method = PaymentMethod.valueOf(paymentMethod),
@@ -109,11 +88,7 @@ class PaymentRepositoryImpl @Inject constructor(
         description = description
     )
 
-    /**
-     * Converts a [TransactionEntity] back to a full domain [Transaction].
-     * Used in the offline fallback path of [getTransactionStatus].
-     */
-    private fun TransactionEntity.toDomain(): Transaction = Transaction(
+    private fun TransactionEntity.toDomain() = Transaction(
         id = id,
         payment = toDomainPayment(),
         status = TransactionStatus.valueOf(status),

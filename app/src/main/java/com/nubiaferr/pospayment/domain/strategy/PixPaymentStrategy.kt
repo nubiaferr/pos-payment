@@ -22,7 +22,7 @@ class PixPaymentStrategy @Inject constructor(
         if (payment.amount > PIX_MAX_AMOUNT) {
             return Result.failure(PixLimitExceededException(PIX_MAX_AMOUNT))
         }
-        return repository.processPix(payment)
+        return repository.processPayment(payment)
     }
 
     companion object {

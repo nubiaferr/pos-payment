@@ -19,6 +19,6 @@ class VoucherPaymentStrategy @Inject constructor(
 ) : PaymentStrategy {
 
     override suspend fun execute(payment: Payment): Result<Transaction> {
-        return repository.processVoucher(payment)
+        return repository.processPayment(payment)
     }
 }

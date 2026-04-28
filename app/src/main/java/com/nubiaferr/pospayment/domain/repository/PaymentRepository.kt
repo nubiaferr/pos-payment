@@ -10,44 +10,21 @@ import com.nubiaferr.pospayment.domain.model.Transaction
  * ([PaymentRepositoryImpl]) lives in the data layer
  * and is injected at runtime via Hilt.
  *
- * All functions are `suspend` to allow callers to run them inside a coroutine
- * without blocking the main thread.
+ * All functions are `suspend` for safe use within coroutines.
  */
 interface PaymentRepository {
 
     /**
-     * Processes a credit card payment through the acquirer.
+     * Processes a payment through the acquirer.
      *
-     * @param payment The payment intent, including amount and instalment count.
+     * The implementation routes to the correct endpoint based on [Payment.method].
+     *
+     * @param payment The payment intent, including amount, method and instalment count.
      * @return [Result.success] with the authorised [Transaction], or
-     *         [Result.failure] wrapping a [com.btg.pos.domain.exception.BusinessException]
-     *         or a network/SDK-level [Exception].
+     *         [Result.failure] wrapping a [BusinessException] for rule violations
+     *         or an infrastructure [Exception] for network/SDK errors.
      */
-    suspend fun processCredit(payment: Payment): Result<Transaction>
-
-    /**
-     * Processes a debit card payment through the acquirer.
-     *
-     * @param payment The payment intent.
-     * @return [Result.success] with the authorised [Transaction], or [Result.failure].
-     */
-    suspend fun processDebit(payment: Payment): Result<Transaction>
-
-    /**
-     * Initiates a Pix QR-code payment and waits for acquirer confirmation.
-     *
-     * @param payment The payment intent.
-     * @return [Result.success] with the authorised [Transaction], or [Result.failure].
-     */
-    suspend fun processPix(payment: Payment): Result<Transaction>
-
-    /**
-     * Processes a voucher (meal/food-card) payment through the acquirer.
-     *
-     * @param payment The payment intent.
-     * @return [Result.success] with the authorised [Transaction], or [Result.failure].
-     */
-    suspend fun processVoucher(payment: Payment): Result<Transaction>
+    suspend fun processPayment(payment: Payment): Result<Transaction>
 
     /**
      * Cancels a previously approved transaction.
@@ -59,7 +36,6 @@ interface PaymentRepository {
 
     /**
      * Retrieves the current status of a transaction by its identifier.
-     *
      * Falls back to local storage if the network is unavailable.
      *
      * @param transactionId The unique identifier of the transaction.
