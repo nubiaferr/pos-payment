@@ -9,7 +9,7 @@ import javax.inject.Inject
 /**
  * Strategy for debit card payments.
  *
- * Business rule: single transaction cannot exceed R$ 10.000,00.
+ * Business rule: single transaction cannot exceed [DEBIT_MAX_AMOUNT].
  */
 class DebitPaymentStrategy @Inject constructor(
     private val repository: PaymentRepository

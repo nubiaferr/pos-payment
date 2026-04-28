@@ -9,7 +9,7 @@ import javax.inject.Inject
 /**
  * Strategy for voucher payments (meal/food cards).
  *
- * Business rule: single transaction cannot exceed R$ 1.000,00.
+ * Business rule: single transaction cannot exceed [VOUCHER_MAX_AMOUNT].
  * Voucher networks typically enforce lower limits than card networks.
  */
 class VoucherPaymentStrategy @Inject constructor(

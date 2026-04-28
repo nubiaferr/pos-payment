@@ -9,7 +9,7 @@ import javax.inject.Inject
 /**
  * Strategy for Pix instant payments.
  *
- * Business rule: single transaction cannot exceed R$ 50.000,00.
+ * Business rule: single transaction cannot exceed [PIX_MAX_AMOUNT].
  */
 class PixPaymentStrategy @Inject constructor(
     private val repository: PaymentRepository

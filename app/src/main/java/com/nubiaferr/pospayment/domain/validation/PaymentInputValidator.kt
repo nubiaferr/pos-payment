@@ -1,25 +1,24 @@
 package com.nubiaferr.pospayment.domain.validation
 
-import com.nubiaferr.pospayment.domain.model.PaymentMethod
-import com.nubiaferr.pospayment.domain.strategy.DebitPaymentStrategy
-import com.nubiaferr.pospayment.domain.strategy.PixPaymentStrategy
-import com.nubiaferr.pospayment.domain.strategy.VoucherPaymentStrategy
 import java.math.BigDecimal
 import javax.inject.Inject
 
 /**
- * Validates payment input values before they reach the use case.
+ * Validates raw payment input values before they reach the use case.
  *
- * Returns typed [AmountValidationResult] and [InstalmentsValidationResult]
- * instead of raw strings. The presentation layer resolves error messages
- * from string resources using the typed result.
+ * Responsibility is limited to format and global boundary rules that are
+ * method-agnostic (zero, negative, global maximum, instalment count).
+ *
+ * Per-method transaction limits (e.g. Pix R$ 50k, Debit R$ 10k) are
+ * enforced exclusively by the corresponding [PaymentStrategy] implementation,
+ * which is the single source of truth for those rules.
+ *
+ * Returns typed results instead of raw strings — the presentation layer
+ * resolves error messages from string resources.
  */
 class PaymentInputValidator @Inject constructor() {
 
-    fun validateAmount(
-        amount: Double,
-        method: PaymentMethod? = null
-    ): AmountValidationResult {
+    fun validateAmount(amount: Double): AmountValidationResult {
         val value = BigDecimal(amount.toString())
 
         if (value <= BigDecimal.ZERO) {
@@ -28,14 +27,6 @@ class PaymentInputValidator @Inject constructor() {
 
         if (value > MAX_TRANSACTION_AMOUNT) {
             return AmountValidationResult.ExceedsGlobalMax(MAX_TRANSACTION_AMOUNT.toDouble())
-        }
-
-        val methodLimit = method?.maxAmount()
-        if (methodLimit != null && value > BigDecimal(methodLimit.toString())) {
-            return AmountValidationResult.ExceedsMethodLimit(
-                method = method,
-                limit = methodLimit
-            )
         }
 
         return AmountValidationResult.Valid(amount)
@@ -60,18 +51,10 @@ class PaymentInputValidator @Inject constructor() {
     }
 }
 
-private fun PaymentMethod.maxAmount(): Double? = when (this) {
-    PaymentMethod.DEBIT   -> DebitPaymentStrategy.DEBIT_MAX_AMOUNT
-    PaymentMethod.PIX     -> PixPaymentStrategy.PIX_MAX_AMOUNT
-    PaymentMethod.VOUCHER -> VoucherPaymentStrategy.VOUCHER_MAX_AMOUNT
-    PaymentMethod.CREDIT  -> null
-}
-
 sealed class AmountValidationResult {
     data class Valid(val amount: Double) : AmountValidationResult()
     object AmountZeroOrNegative : AmountValidationResult()
     data class ExceedsGlobalMax(val max: Double) : AmountValidationResult()
-    data class ExceedsMethodLimit(val method: PaymentMethod, val limit: Double) : AmountValidationResult()
 }
 
 sealed class InstalmentsValidationResult {
