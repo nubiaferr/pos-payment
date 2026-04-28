@@ -122,7 +122,7 @@ class PaymentViewModel @Inject constructor(
             }
             is InstalmentsValidationResult.Valid -> {
                 _instalmentsError.value = null
-                _instalmentSummary.value = if (instalmentsResult.installments > 1) {
+                _instalmentSummary.value = if (rawAmount > 0.0) {
                     val perInstalment = rawAmount / instalmentsResult.installments
                     "${instalmentsResult.installments}x de ${currencyFormatter.format(perInstalment)}"
                 } else {

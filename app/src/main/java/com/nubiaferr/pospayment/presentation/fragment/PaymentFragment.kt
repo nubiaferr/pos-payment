@@ -106,7 +106,12 @@ class PaymentFragment : Fragment() {
                     val isCredit = method == PaymentMethod.CREDIT
                     binding.layoutInstallments.isVisible = isCredit
 
-                    if (!isCredit) {
+                    if (isCredit) {
+                        if (binding.etInstallments.text.isNullOrBlank()) {
+                            binding.etInstallments.setText("1")
+                            notifyInputChanged()
+                        }
+                    } else {
                         binding.etInstallments.text?.clear()
                         binding.tvInstalmentSummary.isVisible = false
                     }

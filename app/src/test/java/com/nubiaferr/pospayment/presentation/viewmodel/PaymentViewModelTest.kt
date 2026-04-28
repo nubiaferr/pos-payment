@@ -1,6 +1,5 @@
 package com.nubiaferr.pospayment.presentation.viewmodel
 
-import com.nubiaferr.pospayment.domain.exception.InstalmentNotAllowedException
 import com.nubiaferr.pospayment.domain.model.Payment
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import com.nubiaferr.pospayment.domain.model.Transaction
@@ -72,6 +71,19 @@ class PaymentViewModelTest {
         getTransactionStatusUseCase = mockk()
         mapper = mockk()
         validator = mockk()
+
+        // Default answers — individual tests override these when they need specific behaviour
+        every { validator.validateAmount(any()) } answers {
+            val amount = firstArg<Double>()
+            if (amount > 0.0) AmountValidationResult.Valid(amount)
+            else AmountValidationResult.Invalid("O valor deve ser maior que zero")
+        }
+        every { validator.validateInstallments(any()) } answers {
+            val raw = firstArg<String>()
+            val parsed = raw.trim().toIntOrNull() ?: 1
+            if (parsed > 12) InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+            else InstalmentsValidationResult.Valid(parsed.coerceAtLeast(1))
+        }
 
         viewModel = PaymentViewModel(
             processPayment = processPaymentUseCase,
@@ -148,12 +160,8 @@ class PaymentViewModelTest {
     // ── onInputChanged — instalment summary ───────────────────────────────────
 
     @Test
-    fun `given valid amount and instalments greater than 1, when onInputChanged, then summary is not null`() =
+    fun `given valid amount and 12 instalments, when onInputChanged, then summary contains 12x`() =
         runTest {
-            every { validator.validateInstallments("12") } returns InstalmentsValidationResult.Valid(
-                12
-            )
-
             viewModel.onInputChanged(rawAmount = 600.0, rawInstalments = "12")
 
             assertNotNull(viewModel.instalmentSummary.value)
@@ -161,21 +169,17 @@ class PaymentViewModelTest {
         }
 
     @Test
-    fun `given single instalment, when onInputChanged, then summary is null`() = runTest {
-        every { validator.validateInstallments("1") } returns InstalmentsValidationResult.Valid(1)
+    fun `given single instalment and positive amount, when onInputChanged, then summary shows 1x`() =
+        runTest {
+            viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "1")
 
-        viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "1")
-
-        assertNull(viewModel.instalmentSummary.value)
-    }
+            assertNotNull(viewModel.instalmentSummary.value)
+            assertTrue(viewModel.instalmentSummary.value!!.contains("1x"))
+        }
 
     @Test
-    fun `given zero amount with valid instalments, when onInputChanged, then summary is null`() =
+    fun `given zero amount, when onInputChanged, then summary is null regardless of instalments`() =
         runTest {
-            every { validator.validateInstallments("3") } returns InstalmentsValidationResult.Valid(
-                3
-            )
-
             viewModel.onInputChanged(rawAmount = 0.0, rawInstalments = "3")
 
             assertNull(viewModel.instalmentSummary.value)
@@ -187,10 +191,6 @@ class PaymentViewModelTest {
     fun `given invalid amount, when processPayment, then emits ValidationError with amountError`() =
         runTest {
             every { validator.validateAmount(0.0) } returns AmountValidationResult.Invalid("O valor deve ser maior que zero")
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                1
-            )
-
             viewModel.processPayment(rawAmount = 0.0, method = PaymentMethod.CREDIT)
 
             val state = viewModel.uiState.value as PaymentUiState.ValidationError
@@ -201,9 +201,7 @@ class PaymentViewModelTest {
     @Test
     fun `given instalments above limit on submit, when processPayment, then emits ValidationError with instalmentsError`() =
         runTest {
-            every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
-            every { validator.validateInstallments("600") } returns
-                    InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+            InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
 
             viewModel.processPayment(
                 rawAmount = 100.0,
@@ -238,8 +236,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `given valid inputs, when processPayment, then emits Success`() = runTest {
-        every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
-        every { validator.validateInstallments("") } returns InstalmentsValidationResult.Valid(1)
         coEvery { processPaymentUseCase(any()) } returns Result.success(approvedTransaction)
         every { mapper.toUiModel(approvedTransaction) } returns uiModel
 
@@ -252,15 +248,8 @@ class PaymentViewModelTest {
     @Test
     fun `given success, when processPayment, then instalmentsError and summary are cleared`() =
         runTest {
-            every { validator.validateInstallments("12") } returns InstalmentsValidationResult.Valid(
-                12
-            )
             viewModel.onInputChanged(600.0, "12")
 
-            every { validator.validateAmount(600.0) } returns AmountValidationResult.Valid(600.0)
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                12
-            )
             coEvery { processPaymentUseCase(any()) } returns Result.success(approvedTransaction)
             every { mapper.toUiModel(any()) } returns uiModel
 
@@ -301,11 +290,6 @@ class PaymentViewModelTest {
     @Test
     fun `given no method selected and valid amount, when onInputChanged, then isConfirmEnabled is false`() =
         runTest {
-            every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                1
-            )
-
             viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "")
 
             assertFalse(viewModel.isConfirmEnabled.value)
@@ -314,11 +298,6 @@ class PaymentViewModelTest {
     @Test
     fun `given method selected and valid amount, when onInputChanged, then isConfirmEnabled is true`() =
         runTest {
-            every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                1
-            )
-
             viewModel.onMethodSelected(PaymentMethod.DEBIT, rawAmount = 100.0, rawInstalments = "")
 
             assertTrue(viewModel.isConfirmEnabled.value)
@@ -336,9 +315,7 @@ class PaymentViewModelTest {
 
     @Test
     fun `given instalments error, when onInputChanged, then isConfirmEnabled is false`() = runTest {
-        every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
-        every { validator.validateInstallments("13") } returns
-                InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+        InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
 
         viewModel.onMethodSelected(PaymentMethod.CREDIT, rawAmount = 100.0, rawInstalments = "13")
 
@@ -348,13 +325,7 @@ class PaymentViewModelTest {
     @Test
     fun `given instalments error is corrected, when onInputChanged, then isConfirmEnabled becomes true`() =
         runTest {
-            every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
-            every { validator.validateInstallments("13") } returns
-                    InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
-            every { validator.validateInstallments("3") } returns InstalmentsValidationResult.Valid(
-                3
-            )
-
+            InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
             viewModel.onMethodSelected(
                 PaymentMethod.CREDIT,
                 rawAmount = 100.0,
@@ -368,8 +339,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `when resetState called, then isConfirmEnabled is false`() = runTest {
-        every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
-        every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(1)
         viewModel.onMethodSelected(PaymentMethod.PIX, rawAmount = 100.0, rawInstalments = "")
         assertTrue(viewModel.isConfirmEnabled.value)
 
@@ -383,10 +352,6 @@ class PaymentViewModelTest {
     @Test
     fun `given method selected, when onMethodSelected, then selectedMethod emits that method`() =
         runTest {
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                1
-            )
-
             viewModel.onMethodSelected(PaymentMethod.PIX, rawAmount = 40.0, rawInstalments = "")
 
             assertEquals(PaymentMethod.PIX, viewModel.selectedMethod.value)
@@ -395,10 +360,6 @@ class PaymentViewModelTest {
     @Test
     fun `given credit selected with amount above minimum, when onMethodSelected, then instalmentInputVisible is true immediately`() =
         runTest {
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                1
-            )
-
             viewModel.onMethodSelected(PaymentMethod.CREDIT, rawAmount = 40.0, rawInstalments = "")
 
             assertTrue(viewModel.instalmentInputVisible.value)
@@ -414,8 +375,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `given debit selected, when onMethodSelected, then selectedMethod is DEBIT`() = runTest {
-        every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(1)
-
         viewModel.onMethodSelected(PaymentMethod.DEBIT, rawAmount = 40.0, rawInstalments = "")
 
         assertEquals(PaymentMethod.DEBIT, viewModel.selectedMethod.value)
@@ -423,7 +382,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `when resetState called, then selectedMethod is null`() = runTest {
-        every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(1)
         viewModel.onMethodSelected(PaymentMethod.PIX, rawAmount = 40.0, rawInstalments = "")
 
         viewModel.resetState()
@@ -444,10 +402,6 @@ class PaymentViewModelTest {
     @Test
     fun `given amount exactly at minimum, when onInputChanged, then instalmentInputVisible is true`() =
         runTest {
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                1
-            )
-
             viewModel.onInputChanged(rawAmount = 10.0, rawInstalments = "")
 
             assertTrue(viewModel.instalmentInputVisible.value)
@@ -456,10 +410,6 @@ class PaymentViewModelTest {
     @Test
     fun `given amount above minimum, when onInputChanged, then instalmentInputVisible is true`() =
         runTest {
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                1
-            )
-
             viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "")
 
             assertTrue(viewModel.instalmentInputVisible.value)
@@ -468,9 +418,6 @@ class PaymentViewModelTest {
     @Test
     fun `given amount drops below minimum after being above, when onInputChanged, then instalmentInputVisible becomes false`() =
         runTest {
-            every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(
-                3
-            )
 
             viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "3")
             assertTrue(viewModel.instalmentInputVisible.value)
@@ -495,10 +442,6 @@ class PaymentViewModelTest {
     @Test
     fun `given amount below minimum, when onInputChanged, then instalmentSummary is cleared`() =
         runTest {
-            every { validator.validateInstallments("3") } returns InstalmentsValidationResult.Valid(
-                3
-            )
-
             viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "3")
             assertNotNull(viewModel.instalmentSummary.value)
 
@@ -508,7 +451,6 @@ class PaymentViewModelTest {
 
     @Test
     fun `when resetState called, then instalmentInputVisible is false`() = runTest {
-        every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(1)
         viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "")
         assertTrue(viewModel.instalmentInputVisible.value)
 
