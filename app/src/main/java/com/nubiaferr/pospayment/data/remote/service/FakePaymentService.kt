@@ -7,27 +7,27 @@ import java.util.UUID
 import javax.inject.Inject
 
 /**
- * Fake implementation of the payment service layer for development and testing.
+ * Fake implementation of [PaymentService] for development and testing.
  *
  * Simulates realistic network latency and returns synthetic acquirer responses
- * based solely on the business rules already enforced by the domain strategies.
+ * based on business rules already enforced by the domain strategies.
  *
- * Swap this for [PaymentService] in [NetworkModule] once a
- * real acquirer API is available — no other class needs to change.
+ * Swap this for [RetrofitPaymentService] in [NetworkModule] once a real
+ * acquirer API is available — [PaymentRepositoryImpl] will be unaffected.
  *
  * Behaviour:
- * - Always approves payments that reach this layer (domain rules already validated).
- * - Simulates 800ms network latency.
- * - Generates a deterministic auth code from the request amount.
+ * - Always approves payments (domain rules already validated upstream).
+ * - Simulates [SIMULATED_LATENCY_MS]ms network latency.
+ * - Generates a random auth code per transaction.
  */
-class FakePaymentService @Inject constructor() {
+class FakePaymentService @Inject constructor() : PaymentService {
 
-    suspend fun processPayment(request: PaymentRequestDto): Result<TransactionResponseDto> {
+    override suspend fun processPayment(request: PaymentRequestDto): Result<TransactionResponseDto> {
         delay(SIMULATED_LATENCY_MS)
         return Result.success(buildResponse(request))
     }
 
-    suspend fun cancelTransaction(transactionId: String): Result<TransactionResponseDto> {
+    override suspend fun cancelTransaction(transactionId: String): Result<TransactionResponseDto> {
         delay(SIMULATED_LATENCY_MS)
         return Result.success(
             TransactionResponseDto(
@@ -43,7 +43,7 @@ class FakePaymentService @Inject constructor() {
         )
     }
 
-    suspend fun getTransaction(transactionId: String): Result<TransactionResponseDto> {
+    override suspend fun getTransaction(transactionId: String): Result<TransactionResponseDto> {
         delay(SIMULATED_LATENCY_MS)
         return Result.success(
             TransactionResponseDto(
