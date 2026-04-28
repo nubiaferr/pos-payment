@@ -1,27 +1,35 @@
 package com.nubiaferr.pospayment.domain.exception
 
+/**
+ * Base class for all domain-level business rule violations.
+ *
+ * Messages are intentionally kept in English here because the domain layer
+ * has no Android context. Localised, user-facing strings are produced in
+ * the presentation layer (PaymentUiMapper / PaymentViewModel) using
+ * string resources.
+ */
 sealed class BusinessException(message: String) : Exception(message)
 
 class UnsupportedPaymentMethodException(
-    method: String
+    val method: String
 ) : BusinessException("Payment method '$method' is not supported on this terminal.")
 
 class InstalmentNotAllowedException(
-    minAmount: Double
+    val minAmount: Double
 ) : BusinessException("Instalment payments require a minimum amount of R$${"%.2f".format(minAmount)}.")
 
 class PixLimitExceededException(
-    limit: Double
+    val limit: Double
 ) : BusinessException("Pix transactions are limited to R$${"%.2f".format(limit)} per transaction.")
 
 class DebitLimitExceededException(
-    limit: Double
-) : BusinessException("Débito não permite transações acima de R$${"%.2f".format(limit)}.")
+    val limit: Double
+) : BusinessException("Debit transactions are limited to R$${"%.2f".format(limit)} per transaction.")
 
 class VoucherLimitExceededException(
-    limit: Double
-) : BusinessException("Voucher não permite transações acima de R$${"%.2f".format(limit)}.")
+    val limit: Double
+) : BusinessException("Voucher transactions are limited to R$${"%.2f".format(limit)} per transaction.")
 
 class TransactionNotCancellableException(
-    transactionId: String
+    val transactionId: String
 ) : BusinessException("Transaction '$transactionId' cannot be cancelled in its current state.")

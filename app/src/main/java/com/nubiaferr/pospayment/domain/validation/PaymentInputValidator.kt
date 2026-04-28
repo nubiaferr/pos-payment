@@ -1,7 +1,6 @@
 package com.nubiaferr.pospayment.domain.validation
 
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
-import com.nubiaferr.pospayment.domain.strategy.CreditPaymentStrategy
 import com.nubiaferr.pospayment.domain.strategy.DebitPaymentStrategy
 import com.nubiaferr.pospayment.domain.strategy.PixPaymentStrategy
 import com.nubiaferr.pospayment.domain.strategy.VoucherPaymentStrategy
@@ -11,25 +10,12 @@ import javax.inject.Inject
 /**
  * Validates payment input values before they reach the use case.
  *
- * Amount validation is aware of the selected [PaymentMethod] so the
- * per-method limit error can be shown in real time while the operator types,
- * without waiting for the strategy to reject the transaction after submit.
- *
- * Pure Kotlin — no Android dependencies. KMP-ready for commonMain.
+ * Returns typed [AmountValidationResult] and [InstalmentsValidationResult]
+ * instead of raw strings. The presentation layer resolves error messages
+ * from string resources using the typed result.
  */
 class PaymentInputValidator @Inject constructor() {
 
-    /**
-     * Validates the amount for a given payment method.
-     *
-     * Checks in order:
-     * 1. Must be greater than zero
-     * 2. Must not exceed the global terminal maximum
-     * 3. Must not exceed the per-method limit
-     *
-     * @param amount The pre-parsed value from [MoneyFormatter].
-     * @param method The currently selected payment method, or null if none selected yet.
-     */
     fun validateAmount(
         amount: Double,
         method: PaymentMethod? = null
@@ -37,19 +23,18 @@ class PaymentInputValidator @Inject constructor() {
         val value = BigDecimal(amount.toString())
 
         if (value <= BigDecimal.ZERO) {
-            return AmountValidationResult.Invalid("O valor deve ser maior que zero")
+            return AmountValidationResult.AmountZeroOrNegative
         }
 
         if (value > MAX_TRANSACTION_AMOUNT) {
-            return AmountValidationResult.Invalid(
-                "Valor máximo por transação: R\$ ${MAX_TRANSACTION_AMOUNT.toPlainString()}"
-            )
+            return AmountValidationResult.ExceedsGlobalMax(MAX_TRANSACTION_AMOUNT.toDouble())
         }
 
         val methodLimit = method?.maxAmount()
         if (methodLimit != null && value > BigDecimal(methodLimit.toString())) {
-            return AmountValidationResult.Invalid(
-                "Valor máximo para ${method.label()}: R\$ ${"%.2f".format(methodLimit).replace(".", ",")}"
+            return AmountValidationResult.ExceedsMethodLimit(
+                method = method,
+                limit = methodLimit
             )
         }
 
@@ -63,9 +48,7 @@ class PaymentInputValidator @Inject constructor() {
         if (parsed < 1) return InstalmentsValidationResult.Valid(1)
 
         if (parsed > MAX_INSTALLMENTS) {
-            return InstalmentsValidationResult.Invalid(
-                "Máximo de $MAX_INSTALLMENTS parcelas permitidas"
-            )
+            return InstalmentsValidationResult.ExceedsMax(MAX_INSTALLMENTS)
         }
 
         return InstalmentsValidationResult.Valid(parsed)
@@ -77,27 +60,21 @@ class PaymentInputValidator @Inject constructor() {
     }
 }
 
-/** Returns the per-method transaction limit, or null if the method has no specific limit. */
 private fun PaymentMethod.maxAmount(): Double? = when (this) {
     PaymentMethod.DEBIT   -> DebitPaymentStrategy.DEBIT_MAX_AMOUNT
     PaymentMethod.PIX     -> PixPaymentStrategy.PIX_MAX_AMOUNT
     PaymentMethod.VOUCHER -> VoucherPaymentStrategy.VOUCHER_MAX_AMOUNT
-    PaymentMethod.CREDIT  -> null  // Credit limit is enforced by instalment rules, not amount
-}
-
-private fun PaymentMethod.label(): String = when (this) {
-    PaymentMethod.CREDIT  -> "Crédito"
-    PaymentMethod.DEBIT   -> "Débito"
-    PaymentMethod.PIX     -> "Pix"
-    PaymentMethod.VOUCHER -> "Voucher"
+    PaymentMethod.CREDIT  -> null
 }
 
 sealed class AmountValidationResult {
     data class Valid(val amount: Double) : AmountValidationResult()
-    data class Invalid(val message: String) : AmountValidationResult()
+    object AmountZeroOrNegative : AmountValidationResult()
+    data class ExceedsGlobalMax(val max: Double) : AmountValidationResult()
+    data class ExceedsMethodLimit(val method: PaymentMethod, val limit: Double) : AmountValidationResult()
 }
 
 sealed class InstalmentsValidationResult {
     data class Valid(val installments: Int) : InstalmentsValidationResult()
-    data class Invalid(val message: String) : InstalmentsValidationResult()
+    data class ExceedsMax(val max: Int) : InstalmentsValidationResult()
 }

@@ -1,8 +1,14 @@
 package com.nubiaferr.pospayment.presentation.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nubiaferr.pospayment.R
 import com.nubiaferr.pospayment.domain.exception.BusinessException
+import com.nubiaferr.pospayment.domain.exception.DebitLimitExceededException
+import com.nubiaferr.pospayment.domain.exception.InstalmentNotAllowedException
+import com.nubiaferr.pospayment.domain.exception.PixLimitExceededException
+import com.nubiaferr.pospayment.domain.exception.VoucherLimitExceededException
 import com.nubiaferr.pospayment.domain.model.Payment
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import com.nubiaferr.pospayment.domain.strategy.CreditPaymentStrategy
@@ -15,6 +21,7 @@ import com.nubiaferr.pospayment.domain.validation.PaymentInputValidator
 import com.nubiaferr.pospayment.presentation.mapper.PaymentUiMapper
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,77 +39,33 @@ class PaymentViewModel @Inject constructor(
     private val getTransactionStatus: GetTransactionStatusUseCase,
     private val mapper: PaymentUiMapper,
     private val validator: PaymentInputValidator,
+    @ApplicationContext private val context: Context,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PaymentUiState>(PaymentUiState.Idle)
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
-    /**
-     * Per-instalment value shown in real time below the instalments field.
-     * e.g. "12x de R$ 50,00". Null when not applicable.
-     */
     private val _instalmentSummary = MutableStateFlow<String?>(null)
     val instalmentSummary: StateFlow<String?> = _instalmentSummary.asStateFlow()
 
-    /**
-     * Inline error for the instalments field, updated on every keystroke.
-     * Null when the value is valid or the field is blank.
-     */
     private val _instalmentsError = MutableStateFlow<String?>(null)
     val instalmentsError: StateFlow<String?> = _instalmentsError.asStateFlow()
 
-    /**
-     * Inline error for the amount field, updated on every keystroke.
-     * Used to show per-method limit errors (e.g. Pix, Débito, Voucher) in real time.
-     * Null when the amount is valid for the current method.
-     */
     private val _amountError = MutableStateFlow<String?>(null)
     val amountError: StateFlow<String?> = _amountError.asStateFlow()
 
-    /**
-     * Controls the instalment input field visibility when Credit is selected.
-     *
-     * - `true`  → amount >= R$ 10,00: show input, hide the minimum notice
-     * - `false` → amount < R$ 10,00:  hide input, show the minimum notice
-     *
-     * Only relevant when the selected method is Credit. The Fragment is
-     * responsible for ignoring this flow for other methods.
-     */
-    private val _instalmentInputVisible = MutableStateFlow(false)
-    val instalmentInputVisible: StateFlow<Boolean> = _instalmentInputVisible.asStateFlow()
-
-    /**
-     * The currently selected payment method.
-     * Kept in the ViewModel so the Fragment can observe and highlight the
-     * correct button reactively — including on config changes.
-     */
     private val _selectedMethod = MutableStateFlow<PaymentMethod?>(null)
     val selectedMethod: StateFlow<PaymentMethod?> = _selectedMethod.asStateFlow()
 
-    /**
-     * Whether the confirm button should be enabled.
-     * True when a method is selected, amount is valid, and there are no instalment errors.
-     */
     private val _isConfirmEnabled = MutableStateFlow(false)
     val isConfirmEnabled: StateFlow<Boolean> = _isConfirmEnabled.asStateFlow()
 
+    private val _instalmentInputVisible = MutableStateFlow(false)
+    val instalmentInputVisible: StateFlow<Boolean> = _instalmentInputVisible.asStateFlow()
+
     private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
 
-    /**
-     * Called on every keystroke in either the amount or instalments field.
-     *
-     * Updates in real time:
-     * - [instalmentInputVisible] based on whether amount meets the minimum
-     * - [instalmentSummary] with the per-instalment breakdown
-     * - [instalmentsError] when the instalment count exceeds the maximum
-     */
-    /**
-     * Called when the operator selects a payment method.
-     * Updates [selectedMethod] and triggers an immediate input evaluation
-     * so [instalmentInputVisible] reflects the current amount without
-     * requiring the operator to change the value.
-     */
     fun onMethodSelected(method: PaymentMethod, rawAmount: Double, rawInstalments: String) {
         _selectedMethod.value = method
         onInputChanged(rawAmount, rawInstalments)
@@ -115,17 +78,13 @@ class PaymentViewModel @Inject constructor(
         if (!meetsMinimum) {
             _instalmentSummary.value = null
             _instalmentsError.value = null
-            _isConfirmEnabled.value = evaluateConfirmEnabled(
-                rawAmount = rawAmount,
-                instalmentsError = null
-            )
+            _isConfirmEnabled.value = evaluateConfirmEnabled(rawAmount, instalmentsError = null)
             return
         }
 
-        // Validate per-method amount limit (e.g. Pix R$ 50k, Débito R$ 10k, Voucher R$ 1k)
         val amountResult = validator.validateAmount(rawAmount, _selectedMethod.value)
-        if (amountResult is AmountValidationResult.Invalid) {
-            _amountError.value = amountResult.message
+        if (amountResult !is AmountValidationResult.Valid) {
+            _amountError.value = resolveAmountError(amountResult)
             _instalmentsError.value = null
             _instalmentSummary.value = null
             _isConfirmEnabled.value = false
@@ -135,8 +94,11 @@ class PaymentViewModel @Inject constructor(
 
         val instalmentsResult = validator.validateInstallments(rawInstalments)
         when (instalmentsResult) {
-            is InstalmentsValidationResult.Invalid -> {
-                _instalmentsError.value = instalmentsResult.message
+            is InstalmentsValidationResult.ExceedsMax -> {
+                _instalmentsError.value = context.getString(
+                    R.string.error_instalments_max,
+                    instalmentsResult.max
+                )
                 _instalmentSummary.value = null
             }
             is InstalmentsValidationResult.Valid -> {
@@ -144,38 +106,13 @@ class PaymentViewModel @Inject constructor(
                 _instalmentSummary.value = if (rawAmount > 0.0) {
                     val perInstalment = rawAmount / instalmentsResult.installments
                     "${instalmentsResult.installments}x de ${currencyFormatter.format(perInstalment)}"
-                } else {
-                    null
-                }
+                } else null
             }
         }
 
-        _isConfirmEnabled.value = evaluateConfirmEnabled(
-            rawAmount = rawAmount,
-            instalmentsError = _instalmentsError.value
-        )
+        _isConfirmEnabled.value = evaluateConfirmEnabled(rawAmount, _instalmentsError.value)
     }
 
-    /**
-     * Returns true when the form is in a submittable state:
-     * - A method is selected
-     * - Amount is positive and within limits
-     * - No instalment errors
-     */
-    private fun evaluateConfirmEnabled(
-        rawAmount: Double,
-        instalmentsError: String?
-    ): Boolean {
-        if (_selectedMethod.value == null) return false
-        if (instalmentsError != null) return false
-        return validator.validateAmount(rawAmount, _selectedMethod.value) is AmountValidationResult.Valid
-    }
-
-    /**
-     * Validates both fields and, if valid, initiates a payment.
-     * Both errors are collected before emitting so the operator sees
-     * all problems at once.
-     */
     fun processPayment(
         rawAmount: Double,
         method: PaymentMethod,
@@ -185,8 +122,10 @@ class PaymentViewModel @Inject constructor(
         val amountResult = validator.validateAmount(rawAmount, method)
         val instalmentsResult = validator.validateInstallments(rawInstallments)
 
-        val amountError = (amountResult as? AmountValidationResult.Invalid)?.message
-        val instalmentsError = (instalmentsResult as? InstalmentsValidationResult.Invalid)?.message
+        val amountError = if (amountResult !is AmountValidationResult.Valid)
+            resolveAmountError(amountResult) else null
+        val instalmentsError = if (instalmentsResult is InstalmentsValidationResult.ExceedsMax)
+            context.getString(R.string.error_instalments_max, instalmentsResult.max) else null
 
         if (amountError != null || instalmentsError != null) {
             _uiState.value = PaymentUiState.ValidationError(
@@ -215,7 +154,7 @@ class PaymentViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _uiState.value = PaymentUiState.Error(
-                        message = error.message ?: "Erro desconhecido",
+                        message = resolveBusinessError(error),
                         isBusinessError = error is BusinessException
                     )
                 }
@@ -232,7 +171,7 @@ class PaymentViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _uiState.value = PaymentUiState.Error(
-                        message = error.message ?: "Erro ao cancelar transação",
+                        message = resolveBusinessError(error),
                         isBusinessError = error is BusinessException
                     )
                 }
@@ -249,7 +188,7 @@ class PaymentViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _uiState.value = PaymentUiState.Error(
-                        message = error.message ?: "Erro ao consultar transação",
+                        message = resolveBusinessError(error),
                         isBusinessError = error is BusinessException
                     )
                 }
@@ -266,4 +205,52 @@ class PaymentViewModel @Inject constructor(
         _isConfirmEnabled.value = false
         _uiState.value = PaymentUiState.Idle
     }
+
+    // ── Private helpers ────────────────────────────────────────────────────────
+
+    private fun evaluateConfirmEnabled(rawAmount: Double, instalmentsError: String?): Boolean {
+        if (_selectedMethod.value == null) return false
+        if (instalmentsError != null) return false
+        return validator.validateAmount(rawAmount, _selectedMethod.value) is AmountValidationResult.Valid
+    }
+
+    /**
+     * Resolves a typed [AmountValidationResult] into a localised string resource.
+     */
+    private fun resolveAmountError(result: AmountValidationResult): String = when (result) {
+        is AmountValidationResult.AmountZeroOrNegative ->
+            context.getString(R.string.error_amount_required)
+        is AmountValidationResult.ExceedsGlobalMax ->
+            context.getString(R.string.error_amount_max, "%.2f".format(result.max))
+        is AmountValidationResult.ExceedsMethodLimit ->
+            context.getString(
+                R.string.error_amount_method_limit,
+                context.getString(result.method.labelRes()),
+                "%.2f".format(result.limit).replace(".", ",")
+            )
+        is AmountValidationResult.Valid -> ""
+    }
+
+    /**
+     * Resolves a [Throwable] into a localised error message.
+     * Business exceptions use typed string resources; unknown errors fall back to generic.
+     */
+    private fun resolveBusinessError(error: Throwable): String = when (error) {
+        is InstalmentNotAllowedException ->
+            context.getString(R.string.error_instalment_not_allowed, error.minAmount)
+        is PixLimitExceededException ->
+            context.getString(R.string.error_pix_limit_exceeded, error.limit)
+        is DebitLimitExceededException ->
+            context.getString(R.string.error_debit_limit_exceeded, error.limit)
+        is VoucherLimitExceededException ->
+            context.getString(R.string.error_voucher_limit_exceeded, error.limit)
+        else -> error.message ?: context.getString(R.string.error_unknown)
+    }
+}
+
+private fun PaymentMethod.labelRes(): Int = when (this) {
+    PaymentMethod.CREDIT  -> R.string.payment_method_credit
+    PaymentMethod.DEBIT   -> R.string.payment_method_debit
+    PaymentMethod.PIX     -> R.string.payment_method_pix
+    PaymentMethod.VOUCHER -> R.string.payment_method_voucher
 }

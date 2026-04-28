@@ -20,11 +20,11 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Comprovante"
-            app:titleTextColor="@color/on_surface"
-            app:titleTextAppearance="@style/TextAppearance.App.Toolbar"
             app:navigationIcon="@drawable/ic_close"
-            app:navigationIconTint="@color/on_surface" />
+            app:navigationIconTint="@color/on_surface"
+            app:title="@string/title_receipt"
+            app:titleTextAppearance="@style/TextAppearance.App.Toolbar"
+            app:titleTextColor="@color/on_surface" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -32,9 +32,9 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
         android:fillViewport="true"
-        android:overScrollMode="never">
+        android:overScrollMode="never"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -46,17 +46,17 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
                 android:gravity="center"
+                android:orientation="vertical"
                 android:paddingTop="8dp"
                 android:paddingBottom="24dp">
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="72dp"
                     android:layout_height="72dp"
+                    app:cardBackgroundColor="@color/success_container"
                     app:cardCornerRadius="36dp"
-                    app:cardElevation="0dp"
-                    app:cardBackgroundColor="@color/success_container">
+                    app:cardElevation="0dp">
 
                     <ImageView
                         android:layout_width="36dp"
@@ -71,19 +71,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="Pagamento aprovado"
+                    android:text="@string/receipt_payment_approved"
                     android:textColor="@color/on_surface"
-                    android:textSize="20sp"
-                    />
+                    android:textSize="20sp" />
 
                 <TextView
                     android:id="@+id/tv_amount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:textSize="32sp"
                     android:textColor="@color/primary"
-                    tools:text="R$ 150,00" />
+                    android:textSize="32sp"
+                    tools:text="R$ 150.00" />
 
             </LinearLayout>
 
@@ -91,11 +90,11 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/surface"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
                 app:strokeColor="@color/stroke"
-                app:strokeWidth="1dp"
-                app:cardBackgroundColor="@color/surface">
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -103,27 +102,25 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
-                    <!-- Row helper macro: label + value -->
-
                     <!-- Method -->
                     <LinearLayout style="@style/ReceiptRow">
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Forma de pagamento"
+                            android:text="@string/receipt_label_method"
                             style="@style/ReceiptLabel" />
                         <TextView
                             android:id="@+id/tv_method"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             style="@style/ReceiptValue"
-                            tools:text="Crédito" />
+                            tools:text="Credit" />
                     </LinearLayout>
 
                     <View style="@style/Divider" />
 
-                    <!-- Instalments — hidden when empty -->
+                    <!-- Instalments -->
                     <LinearLayout
                         android:id="@+id/row_instalments"
                         style="@style/ReceiptRow">
@@ -131,14 +128,14 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Parcelas"
+                            android:text="@string/receipt_label_instalments"
                             style="@style/ReceiptLabel" />
                         <TextView
                             android:id="@+id/tv_instalments"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             style="@style/ReceiptValue"
-                            tools:text="3x de R$ 50,00" />
+                            tools:text="3x of R$ 50.00" />
                     </LinearLayout>
 
                     <View
@@ -151,14 +148,14 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Status"
+                            android:text="@string/receipt_label_status"
                             style="@style/ReceiptLabel" />
                         <TextView
                             android:id="@+id/tv_status"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             style="@style/ReceiptValue"
-                            tools:text="Aprovado" />
+                            tools:text="Approved" />
                     </LinearLayout>
 
                     <View style="@style/Divider" />
@@ -169,7 +166,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Autorização"
+                            android:text="@string/receipt_label_auth_code"
                             style="@style/ReceiptLabel" />
                         <TextView
                             android:id="@+id/tv_auth_code"
@@ -187,7 +184,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Data e hora"
+                            android:text="@string/receipt_label_date"
                             style="@style/ReceiptLabel" />
                         <TextView
                             android:id="@+id/tv_date"
@@ -205,16 +202,15 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="ID da transação"
+                            android:text="@string/receipt_label_transaction_id"
                             style="@style/ReceiptLabel" />
                         <TextView
                             android:id="@+id/tv_transaction_id"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:maxWidth="160dp"
                             android:ellipsize="end"
                             android:maxLines="1"
-
+                            android:maxWidth="160dp"
                             style="@style/ReceiptValue"
                             tools:text="a1b2c3d4-e5f6" />
                     </LinearLayout>
@@ -226,27 +222,26 @@
             <!-- ── New payment button ─────────────────────────────────────── -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_new_payment"
+                style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:layout_marginTop="24dp"
-                android:text="Novo pagamento"
+                android:text="@string/btn_new_payment"
                 android:textSize="15sp"
-
-                app:cornerRadius="12dp"
-                style="@style/Widget.MaterialComponents.Button" />
+                app:cornerRadius="12dp" />
 
             <!-- ── Cancel transaction button ──────────────────────────────── -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_cancel_transaction"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Cancelar esta transação"
-                android:textSize="14sp"
+                android:text="@string/btn_cancel_transaction"
                 android:textColor="@color/error"
-                app:rippleColor="@color/error_container"
+                android:textSize="14sp"
                 app:cornerRadius="12dp"
-                style="@style/Widget.MaterialComponents.Button.TextButton" />
+                app:rippleColor="@color/error_container" />
 
         </LinearLayout>
 

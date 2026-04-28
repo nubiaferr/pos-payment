@@ -1,3 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">POSPayment</string>
+
+    <!-- App -->
+    <string name="app_name">POS Payment</string>
+
+    <!-- ── Toolbar titles ─────────────────────────────────────────────────── -->
+    <string name="title_new_payment">New Payment</string>
+    <string name="title_receipt">Receipt</string>
+
+    <!-- ── Payment methods ───────────────────────────────────────────────── -->
+    <string name="payment_method_credit">Credit</string>
+    <string name="payment_method_debit">Debit</string>
+    <string name="payment_method_pix">Pix</string>
+    <string name="payment_method_voucher">Voucher</string>
+
+    <!-- ── Amount input ───────────────────────────────────────────────────── -->
+    <string name="label_amount">Amount</string>
+    <string name="label_payment_method">Payment method</string>
+
+    <!-- ── Instalment input ──────────────────────────────────────────────── -->
+    <string name="label_instalments">Instalments</string>
+    <string name="hint_instalments_minimum">Minimum R$ 10.00 to pay in instalments</string>
+
+    <!-- ── Buttons ────────────────────────────────────────────────────────── -->
+    <string name="btn_confirm_payment">Confirm payment</string>
+    <string name="btn_new_payment">New payment</string>
+    <string name="btn_retry">Try again</string>
+    <string name="btn_cancel_transaction">Cancel this transaction</string>
+
+    <!-- ── Loading messages ──────────────────────────────────────────────── -->
+    <string name="loading_processing_payment">Processing payment…</string>
+    <string name="loading_awaiting_card">Waiting for card…</string>
+
+    <!-- ── Error card ─────────────────────────────────────────────────────── -->
+    <string name="error_payment_not_processed">Payment not processed</string>
+
+    <!-- ── Validation errors ─────────────────────────────────────────────── -->
+    <string name="error_amount_required">Amount must be greater than zero</string>
+    <string name="error_amount_max">Maximum amount per transaction: R$ %1$s</string>
+    <string name="error_amount_method_limit">Maximum amount for %1$s: R$ %2$s</string>
+    <string name="error_instalments_max">Maximum of %1$d instalments allowed</string>
+
+    <!-- ── Fallback error messages (ViewModel) ───────────────────────────── -->
+    <string name="error_unknown">Unknown error</string>
+    <string name="error_cancel_transaction">Error cancelling transaction</string>
+    <string name="error_check_status">Error checking transaction status</string>
+
+    <!-- ── Business exceptions ───────────────────────────────────────────── -->
+    <string name="error_instalment_not_allowed">Instalment payments require a minimum of R$ %1$.2f.</string>
+    <string name="error_pix_limit_exceeded">Pix transactions are limited to R$ %1$.2f per transaction.</string>
+    <string name="error_debit_limit_exceeded">Debit transactions are limited to R$ %1$.2f per transaction.</string>
+    <string name="error_voucher_limit_exceeded">Voucher transactions are limited to R$ %1$.2f per transaction.</string>
+    <string name="error_unsupported_method">Payment method \'%1$s\' is not supported on this terminal.</string>
+    <string name="error_transaction_not_cancellable">Transaction \'%1$s\' cannot be cancelled in its current state.</string>
+
+    <!-- ── Cancel dialog ──────────────────────────────────────────────────── -->
+    <string name="dialog_cancel_title">Cancel transaction</string>
+    <string name="dialog_cancel_message">Are you sure you want to cancel this transaction? The amount will be refunded.</string>
+    <string name="dialog_cancel_confirm">Cancel transaction</string>
+    <string name="dialog_cancel_dismiss">Keep</string>
+    <string name="dialog_cancel_error_title">Could not cancel</string>
+    <string name="dialog_ok">Ok</string>
+
+    <!-- ── Receipt screen ─────────────────────────────────────────────────── -->
+    <string name="receipt_payment_approved">Payment approved</string>
+    <string name="receipt_label_method">Payment method</string>
+    <string name="receipt_label_instalments">Instalments</string>
+    <string name="receipt_label_status">Status</string>
+    <string name="receipt_label_auth_code">Authorization</string>
+    <string name="receipt_label_date">Date and time</string>
+    <string name="receipt_label_transaction_id">Transaction ID</string>
+
+    <!-- ── Transaction statuses ───────────────────────────────────────────── -->
+    <string name="status_approved">Approved</string>
+    <string name="status_declined">Declined</string>
+    <string name="status_cancelled">Cancelled</string>
+    <string name="status_pending">Pending</string>
+
 </resources>

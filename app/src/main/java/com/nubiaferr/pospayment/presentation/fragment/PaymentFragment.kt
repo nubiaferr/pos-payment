@@ -12,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import com.nubiaferr.pospayment.R
 import com.nubiaferr.pospayment.databinding.FragmentPaymentBinding
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
@@ -217,7 +218,7 @@ class PaymentFragment : Fragment() {
     }
 
     private fun showLoading() {
-        binding.tvLoadingMessage.text = "Processando pagamento…"
+        binding.tvLoadingMessage.text = getString(R.string.loading_processing_payment)
         binding.layoutLoading.isVisible = true
         binding.cardAmount.isVisible = false
         binding.groupPaymentButtons.isVisible = false
@@ -227,7 +228,7 @@ class PaymentFragment : Fragment() {
     }
 
     private fun showAwaitingCard() {
-        binding.tvLoadingMessage.text = "Aguardando o cartão…"
+        binding.tvLoadingMessage.text = getString(R.string.loading_awaiting_card)
         binding.layoutLoading.isVisible = true
         binding.cardAmount.isVisible = false
         binding.groupPaymentButtons.isVisible = false

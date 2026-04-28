@@ -20,7 +20,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:paddingTop="30dp"
-            app:title="Novo Pagamento"
+            app:title="@string/title_new_payment"
             app:titleTextAppearance="@style/TextAppearance.App.Toolbar"
             app:titleTextColor="@color/on_surface" />
 
@@ -63,7 +63,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.05"
-                        android:text="Valor"
+                        android:text="@string/label_amount"
                         android:textAllCaps="true"
                         android:textColor="@color/on_surface_variant"
                         android:textSize="12sp" />
@@ -113,7 +113,7 @@
                             android:id="@+id/tv_instalments_hint"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Mínimo R$ 10,00 para parcelar"
+                            android:text="@string/hint_instalments_minimum"
                             android:textColor="@color/on_surface_variant"
                             android:textSize="12sp"
                             android:visibility="visible"
@@ -135,7 +135,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Parcelas"
+                                android:text="@string/label_instalments"
                                 android:textColor="@color/on_surface"
                                 android:textSize="14sp" />
 
@@ -189,7 +189,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:letterSpacing="0.05"
-                android:text="Forma de pagamento"
+                android:text="@string/label_payment_method"
                 android:textAllCaps="true"
                 android:textColor="@color/on_surface_variant"
                 android:textSize="12sp"
@@ -212,7 +212,7 @@
                     android:layout_width="0dp"
                     android:layout_height="56dp"
                     android:layout_marginEnd="8dp"
-                    android:text="Crédito"
+                    android:text="@string/payment_method_credit"
                     android:textColor="@color/color_payment_method_button_content"
                     android:textSize="14sp"
                     app:backgroundTint="@color/color_payment_method_button_bg"
@@ -228,7 +228,7 @@
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="56dp"
-                    android:text="Débito"
+                    android:text="@string/payment_method_debit"
                     android:textColor="@color/color_payment_method_button_content"
                     android:textSize="14sp"
                     app:backgroundTint="@color/color_payment_method_button_bg"
@@ -246,7 +246,7 @@
                     android:layout_height="56dp"
                     android:layout_marginTop="10dp"
                     android:layout_marginEnd="8dp"
-                    android:text="Pix"
+                    android:text="@string/payment_method_pix"
                     android:textColor="@color/color_payment_method_button_content"
                     android:textSize="14sp"
                     app:backgroundTint="@color/color_payment_method_button_bg"
@@ -263,7 +263,7 @@
                     android:layout_width="0dp"
                     android:layout_height="56dp"
                     android:layout_marginTop="10dp"
-                    android:text="Voucher"
+                    android:text="@string/payment_method_voucher"
                     android:textColor="@color/color_payment_method_button_content"
                     android:textSize="14sp"
                     app:backgroundTint="@color/color_payment_method_button_bg"
@@ -283,7 +283,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:layout_marginTop="24dp"
-                android:text="Confirmar pagamento"
+                android:text="@string/btn_confirm_payment"
                 android:textSize="15sp"
                 android:enabled="false"
                 app:cornerRadius="12dp"
@@ -318,7 +318,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="Processando pagamento…"
+                    android:text="@string/loading_processing_payment"
                     android:textColor="@color/on_surface_variant"
                     android:textSize="14sp" />
 
@@ -356,7 +356,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="Pagamento não processado"
+                            android:text="@string/error_payment_not_processed"
                             android:textColor="@color/error"
                             android:textSize="14sp" />
 
@@ -378,7 +378,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="Tentar novamente"
+                        android:text="@string/btn_retry"
                         android:textSize="13sp"
                         app:cornerRadius="8dp" />
 

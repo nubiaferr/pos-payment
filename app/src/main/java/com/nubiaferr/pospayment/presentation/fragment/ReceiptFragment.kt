@@ -13,6 +13,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.nubiaferr.pospayment.R
 import com.nubiaferr.pospayment.databinding.FragmentReceiptBinding
 import com.nubiaferr.pospayment.presentation.uistate.PaymentUiState
 import com.nubiaferr.pospayment.presentation.viewmodel.PaymentViewModel
@@ -35,6 +36,8 @@ class ReceiptFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val args: ReceiptFragmentArgs by navArgs()
+
+    // Shared ViewModel with PaymentFragment via the NavGraph back stack
     private val viewModel: PaymentViewModel by viewModels()
 
     override fun onCreateView(
@@ -91,6 +94,7 @@ class ReceiptFragment : Fragment() {
                     when (state) {
                         is PaymentUiState.Loading -> showCancelLoading(true)
                         is PaymentUiState.Success -> {
+                            // Transaction cancelled — go back to payment screen
                             showCancelLoading(false)
                             findNavController().popBackStack()
                         }
@@ -107,12 +111,12 @@ class ReceiptFragment : Fragment() {
 
     private fun showCancelConfirmationDialog() {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Cancelar transação")
-            .setMessage("Tem certeza que deseja cancelar esta transação? O valor será estornado.")
-            .setPositiveButton("Cancelar transação") { _, _ ->
+            .setTitle(getString(R.string.dialog_cancel_title))
+            .setMessage(getString(R.string.dialog_cancel_message))
+            .setPositiveButton(getString(R.string.dialog_cancel_confirm)) { _, _ ->
                 viewModel.cancelPreviousTransaction(args.transaction.id)
             }
-            .setNegativeButton("Manter") { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton(getString(R.string.dialog_cancel_dismiss)) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
@@ -123,9 +127,9 @@ class ReceiptFragment : Fragment() {
 
     private fun showCancelError(message: String) {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Não foi possível cancelar")
+            .setTitle(getString(R.string.dialog_cancel_error_title))
             .setMessage(message)
-            .setPositiveButton("Ok") { dialog, _ -> dialog.dismiss() }
+            .setPositiveButton(getString(R.string.dialog_ok)) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 
