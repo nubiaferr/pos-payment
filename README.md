@@ -10,7 +10,7 @@ A production-grade Android application simulating a point-of-sale (POS) terminal
 
 | Payment flow | Receipt | Reactive validation |
 |---|---|---|
-| _(screenshot)_ | _(screenshot)_ | _(screenshot)_ |
+| _<img width="283" height="623" alt="image" src="https://github.com/user-attachments/assets/ce0d9d45-aa8d-46e2-9062-a96f10e6a842" />_ | _<img width="283" height="623" alt="image" src="https://github.com/user-attachments/assets/29451b71-54ef-4bde-a3d1-43e3b01d2e87" />_ | _<img width="283" height="623" alt="Screen Recording 2026-04-28 at 18 12 21" src="https://github.com/user-attachments/assets/5edfb2e4-e57f-4b9f-b229-20b3c55c50cb" />_ |
  
 ---
 
@@ -18,7 +18,8 @@ A production-grade Android application simulating a point-of-sale (POS) terminal
 
 The project follows **Clean Architecture** with three strict layers. The dependency rule is enforced throughout: **arrows always point inward toward Domain**. No outer layer is ever imported by an inner one.
 
-(screenshot)
+<img width="727" height="673" alt="image" src="https://github.com/user-attachments/assets/36ceb187-cd48-4410-9c6d-502f5df03b6d" />
+
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -259,5 +260,5 @@ The reason this works cleanly is the dependency rule already enforced in code: `
 
 ## Author
 
-Nubia Ferreira
+[Nubia Ferreira](https://www.linkedin.com/in/nubia-ferreira/)
 
