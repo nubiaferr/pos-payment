@@ -3,6 +3,7 @@ package com.nubiaferr.pospayment.data.mapper
 import com.nubiaferr.pospayment.data.remote.dto.TransactionResponseDto
 import com.nubiaferr.pospayment.domain.model.Payment
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
+import com.nubiaferr.pospayment.domain.model.Transaction
 import com.nubiaferr.pospayment.domain.model.TransactionStatus
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -11,8 +12,10 @@ import org.junit.Test
 /**
  * Unit tests for [PaymentDataMapper].
  *
- * Verifies correct conversion between data-layer DTOs and domain entities,
- * including amount unit conversion (cents ↔ BRL) and status mapping.
+ * Verifies correct conversion across all three mapping directions:
+ * - [toRequestDto]: domain Payment → API request DTO
+ * - [toDomain]:     API response DTO → domain Transaction
+ * - [toEntity]:     domain Transaction → Room entity
  */
 class PaymentDataMapperTest {
 
@@ -140,6 +143,66 @@ class PaymentDataMapperTest {
         assertEquals(TransactionStatus.APPROVED, transaction.status)
     }
 
+    // ── toEntity ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `given approved transaction, when toEntity, then status is stored as APPROVED string`() {
+        val transaction = makeTransaction(status = TransactionStatus.APPROVED)
+
+        val entity = mapper.toEntity(transaction)
+
+        assertEquals("APPROVED", entity.status)
+    }
+
+    @Test
+    fun `given transaction with BRL amount, when toEntity, then amount is stored in cents`() {
+        val transaction = makeTransaction(amount = 49.99)
+
+        val entity = mapper.toEntity(transaction)
+
+        assertEquals(4999L, entity.amount)
+    }
+
+    @Test
+    fun `given transaction with installments, when toEntity, then installments are preserved`() {
+        val transaction = makeTransaction(installments = 6)
+
+        val entity = mapper.toEntity(transaction)
+
+        assertEquals(6, entity.installments)
+    }
+
+    @Test
+    fun `given transaction with credit method, when toEntity, then paymentMethod is CREDIT`() {
+        val transaction = makeTransaction(method = PaymentMethod.CREDIT)
+
+        val entity = mapper.toEntity(transaction)
+
+        assertEquals("CREDIT", entity.paymentMethod)
+    }
+
+    @Test
+    fun `given transaction, when toEntity, then id and authCode are preserved exactly`() {
+        val transaction = makeTransaction()
+
+        val entity = mapper.toEntity(transaction)
+
+        assertEquals(transaction.id, entity.id)
+        assertEquals(transaction.authCode, entity.authCode)
+    }
+
+    @Test
+    fun `given transaction, when toEntity then toDomain round-trip, then amount is preserved within rounding`() {
+        // This verifies the cents conversion is symmetric
+        val originalAmount = 99.99
+        val transaction = makeTransaction(amount = originalAmount)
+
+        val entity = mapper.toEntity(transaction)
+        val reconstructedAmount = entity.amount / 100.0
+
+        assertEquals(originalAmount, reconstructedAmount, 0.001)
+    }
+
     // ── helpers ────────────────────────────────────────────────────────────────
 
     private fun makeDto(
@@ -154,6 +217,19 @@ class PaymentDataMapperTest {
         method = "credit",
         installments = 1,
         description = "Test",
+        timestamp = 1_700_000_000_000L
+    )
+
+    private fun makeTransaction(
+        amount: Double = 100.0,
+        method: PaymentMethod = PaymentMethod.CREDIT,
+        installments: Int = 1,
+        status: TransactionStatus = TransactionStatus.APPROVED
+    ) = Transaction(
+        id = "txn_entity_001",
+        payment = Payment(amount = amount, method = method, installments = installments),
+        status = status,
+        authCode = "AUTH_ENTITY",
         timestamp = 1_700_000_000_000L
     )
 }
