@@ -52,7 +52,7 @@ class PaymentViewModel @Inject constructor(
 
     /**
      * Typed instalment validation result emitted on every keystroke.
-     * [com.nubiaferr.pospayment.presentation.fragment.PaymentFragment] resolves this to a string via [InstalmentsValidationResult.toErrorString].
+     * [com.nubiaferr.pospayment.presentation.fragment.PaymentFragment] resolves this to a string via [InstalmentsValidationResult].
      * Null when valid or field is not visible.
      */
     private val _instalmentsValidation = MutableStateFlow<InstalmentsValidationResult?>(null)

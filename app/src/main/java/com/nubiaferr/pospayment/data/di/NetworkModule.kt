@@ -24,11 +24,6 @@ import javax.inject.Singleton
  *
  * All bindings are [Singleton] — one Retrofit instance and one Room database
  * shared across the entire app lifetime.
- *
- * SWAP NOTE: To go live with a real acquirer API:
- * 1. Uncomment [com.nubiaferr.pospayment.data.di.NetworkModule_ProvidePaymentApiFactory.providePaymentApi] and add Retrofit + PaymentApi imports.
- * 2. Replace [providePaymentService] to wrap [com.nubiaferr.pospayment.data.remote.service.PaymentApi] in a real [PaymentService].
- * No other class needs to change — [com.nubiaferr.pospayment.data.repository.PaymentRepositoryImpl] depends only on the interface.
  */
 @Module
 @InstallIn(SingletonComponent::class)
