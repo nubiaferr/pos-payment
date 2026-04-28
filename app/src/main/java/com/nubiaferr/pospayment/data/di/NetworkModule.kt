@@ -2,9 +2,12 @@ package com.nubiaferr.pospayment.data.di
 
 import android.content.Context
 import androidx.room.Room
+import com.nubiaferr.pospayment.BuildConfig
 import com.nubiaferr.pospayment.data.local.PaymentDatabase
 import com.nubiaferr.pospayment.data.local.dao.PaymentDao
+import com.nubiaferr.pospayment.data.remote.service.FakePaymentService
 import com.nubiaferr.pospayment.data.remote.service.PaymentApi
+import com.nubiaferr.pospayment.data.remote.service.PaymentService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,27 +35,28 @@ object NetworkModule {
     private const val DB_NAME = "pos_payment.db"
 
     /**
-     * Provides a configured [OkHttpClient] with logging and timeouts appropriate
-     * for a POS terminal environment (longer timeouts for unstable connections).
+     * Provides a configured [OkHttpClient].
+     *
+     * Logging is enabled only in debug builds to prevent sensitive card/PII data
+     * from being logged in production POS environments.
      */
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .addInterceptor(
-            HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
-        )
-        .build()
+    fun provideOkHttpClient(): OkHttpClient {
+        val loggingLevel = if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor.Level.BODY
+        } else {
+            HttpLoggingInterceptor.Level.NONE
+        }
 
-    /**
-     * Provides the [Retrofit] instance configured with the acquirer base URL.
-     *
-     * @param client The [OkHttpClient] to use for all requests.
-     */
+        return OkHttpClient.Builder()
+            .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .addInterceptor(HttpLoggingInterceptor().apply { level = loggingLevel })
+            .build()
+    }
+
     @Provides
     @Singleton
     fun provideRetrofit(client: OkHttpClient): Retrofit = Retrofit.Builder()
@@ -61,21 +65,23 @@ object NetworkModule {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
-    /**
-     * Provides the [PaymentApi] Retrofit interface implementation.
-     *
-     * @param retrofit The configured [Retrofit] instance.
-     */
     @Provides
     @Singleton
     fun providePaymentApi(retrofit: Retrofit): PaymentApi =
         retrofit.create(PaymentApi::class.java)
 
     /**
-     * Provides the Room [PaymentDatabase] instance.
+     * Provides the active [PaymentService] implementation.
      *
-     * @param context Application context required by Room.
+     * Currently returns [FakePaymentService] for development.
+     * To go live: replace the return value with a real [PaymentService] instance
+     * that wraps [PaymentApi]. The [PaymentRepositoryImpl] only sees the
+     * [PaymentService] interface and is unaffected by this swap.
      */
+    @Provides
+    @Singleton
+    fun providePaymentService(fake: FakePaymentService): PaymentService = fake
+
     @Provides
     @Singleton
     fun providePaymentDatabase(
@@ -86,11 +92,6 @@ object NetworkModule {
         DB_NAME
     ).build()
 
-    /**
-     * Provides the [PaymentDao] extracted from the database instance.
-     *
-     * @param database The [PaymentDatabase] instance.
-     */
     @Provides
     @Singleton
     fun providePaymentDao(database: PaymentDatabase): PaymentDao =
