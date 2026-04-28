@@ -12,7 +12,7 @@ import javax.inject.Inject
  * Simulates realistic network latency and returns synthetic acquirer responses
  * based on business rules already enforced by the domain strategies.
  *
- * Swap this for [RetrofitPaymentService] in [NetworkModule] once a real
+ * Swap this for a real [PaymentService] in [NetworkModule] once a real
  * acquirer API is available — [PaymentRepositoryImpl] will be unaffected.
  *
  * Behaviour:
