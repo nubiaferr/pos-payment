@@ -38,36 +38,49 @@ class PaymentViewModel @Inject constructor(
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
     /**
-     * Instalment summary shown below the field while the operator fills in the form.
-     * Emits a formatted string like "12x de R$ 50,00" or null when not applicable.
+     * Per-instalment value shown in real time below the instalments field.
+     * e.g. "12x de R$ 50,00". Null when not applicable.
      */
     private val _instalmentSummary = MutableStateFlow<String?>(null)
     val instalmentSummary: StateFlow<String?> = _instalmentSummary.asStateFlow()
+
+    /**
+     * Inline error for the instalments field, updated on every keystroke.
+     * Null when the value is valid or the field is blank.
+     */
+    private val _instalmentsError = MutableStateFlow<String?>(null)
+    val instalmentsError: StateFlow<String?> = _instalmentsError.asStateFlow()
 
     private val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
 
     /**
      * Called on every keystroke in either the amount or instalments field.
-     * Updates [instalmentSummary] in real time so the operator sees the
-     * per-instalment value before tapping Confirm.
-     *
-     * @param rawAmount    Pre-parsed [Double] from [MoneyTextWatcher.rawAmount].
-     * @param rawInstalments Raw string from the instalments field.
+     * Updates [instalmentSummary] and [instalmentsError] in real time.
      */
     fun onInputChanged(rawAmount: Double, rawInstalments: String) {
-        val instalments = rawInstalments.trim().toIntOrNull() ?: 1
-        _instalmentSummary.value = if (instalments > 1 && rawAmount > 0.0) {
-            val perInstalment = rawAmount / instalments
-            "${instalments}x de ${currencyFormatter.format(perInstalment)}"
-        } else {
-            null
+        val instalmentsResult = validator.validateInstallments(rawInstalments)
+
+        when (instalmentsResult) {
+            is InstalmentsValidationResult.Invalid -> {
+                _instalmentsError.value = instalmentsResult.message
+                _instalmentSummary.value = null
+            }
+            is InstalmentsValidationResult.Valid -> {
+                _instalmentsError.value = null
+                _instalmentSummary.value = if (instalmentsResult.installments > 1 && rawAmount > 0.0) {
+                    val perInstalment = rawAmount / instalmentsResult.installments
+                    "${instalmentsResult.installments}x de ${currencyFormatter.format(perInstalment)}"
+                } else {
+                    null
+                }
+            }
         }
     }
 
     /**
      * Validates both fields and, if valid, initiates a payment.
-     * Both field errors are collected before emitting so the operator
-     * sees all problems at once instead of one at a time.
+     * Both errors are collected before emitting so the operator sees
+     * all problems at once.
      */
     fun processPayment(
         rawAmount: Double,
@@ -103,6 +116,7 @@ class PaymentViewModel @Inject constructor(
             processPayment(payment).fold(
                 onSuccess = { transaction ->
                     _instalmentSummary.value = null
+                    _instalmentsError.value = null
                     _uiState.value = PaymentUiState.Success(mapper.toUiModel(transaction))
                 },
                 onFailure = { error ->
@@ -151,6 +165,7 @@ class PaymentViewModel @Inject constructor(
 
     fun resetState() {
         _instalmentSummary.value = null
+        _instalmentsError.value = null
         _uiState.value = PaymentUiState.Idle
     }
 }

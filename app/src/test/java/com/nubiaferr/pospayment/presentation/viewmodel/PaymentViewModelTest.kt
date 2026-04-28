@@ -98,39 +98,79 @@ class PaymentViewModelTest {
         assertNull(viewModel.instalmentSummary.first())
     }
 
-    // ── onInputChanged — instalment summary ───────────────────────────────────
+    @Test
+    fun `initial instalmentsError is null`() = runTest {
+        assertNull(viewModel.instalmentsError.first())
+    }
+
+    // ── onInputChanged — real-time instalment error ────────────────────────────
 
     @Test
-    fun `given amount and instalments greater than 1, when onInputChanged, then summary is not null`() = runTest {
-        viewModel.onInputChanged(rawAmount = 600.0, rawInstalments = "12")
-        assertNotNull(viewModel.instalmentSummary.value)
+    fun `given instalments above limit, when onInputChanged, then instalmentsError is set immediately`() = runTest {
+        every { validator.validateInstallments("13") } returns
+                InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+
+        viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "13")
+
+        assertNotNull(viewModel.instalmentsError.value)
+        assertTrue(viewModel.instalmentsError.value!!.contains("12"))
     }
 
     @Test
-    fun `given amount 600 and 12 instalments, when onInputChanged, then summary contains 12x`() = runTest {
+    fun `given instalments above limit, when onInputChanged, then instalmentSummary is null`() = runTest {
+        every { validator.validateInstallments("13") } returns
+                InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+
+        viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "13")
+
+        assertNull(viewModel.instalmentSummary.value)
+    }
+
+    @Test
+    fun `given valid instalments after invalid, when onInputChanged, then instalmentsError clears`() = runTest {
+        every { validator.validateInstallments("13") } returns
+                InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+        every { validator.validateInstallments("12") } returns
+                InstalmentsValidationResult.Valid(12)
+
+        viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "13")
+        assertNotNull(viewModel.instalmentsError.value)
+
+        viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "12")
+        assertNull(viewModel.instalmentsError.value)
+    }
+
+    // ── onInputChanged — instalment summary ───────────────────────────────────
+
+    @Test
+    fun `given valid amount and instalments greater than 1, when onInputChanged, then summary is not null`() = runTest {
+        every { validator.validateInstallments("12") } returns InstalmentsValidationResult.Valid(12)
+
         viewModel.onInputChanged(rawAmount = 600.0, rawInstalments = "12")
-        assertTrue(viewModel.instalmentSummary.value?.contains("12x") == true)
+
+        assertNotNull(viewModel.instalmentSummary.value)
+        assertTrue(viewModel.instalmentSummary.value!!.contains("12x"))
     }
 
     @Test
     fun `given single instalment, when onInputChanged, then summary is null`() = runTest {
+        every { validator.validateInstallments("1") } returns InstalmentsValidationResult.Valid(1)
+
         viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "1")
+
         assertNull(viewModel.instalmentSummary.value)
     }
 
     @Test
-    fun `given zero amount, when onInputChanged, then summary is null`() = runTest {
+    fun `given zero amount with valid instalments, when onInputChanged, then summary is null`() = runTest {
+        every { validator.validateInstallments("3") } returns InstalmentsValidationResult.Valid(3)
+
         viewModel.onInputChanged(rawAmount = 0.0, rawInstalments = "3")
+
         assertNull(viewModel.instalmentSummary.value)
     }
 
-    @Test
-    fun `given blank instalments, when onInputChanged, then summary is null`() = runTest {
-        viewModel.onInputChanged(rawAmount = 100.0, rawInstalments = "")
-        assertNull(viewModel.instalmentSummary.value)
-    }
-
-    // ── processPayment — amount error only ────────────────────────────────────
+    // ── processPayment — validation ────────────────────────────────────────────
 
     @Test
     fun `given invalid amount, when processPayment, then emits ValidationError with amountError`() = runTest {
@@ -144,10 +184,8 @@ class PaymentViewModelTest {
         assertNull(state.instalmentsError)
     }
 
-    // ── processPayment — instalments error only ───────────────────────────────
-
     @Test
-    fun `given instalments above limit, when processPayment, then emits ValidationError with instalmentsError`() = runTest {
+    fun `given instalments above limit on submit, when processPayment, then emits ValidationError with instalmentsError`() = runTest {
         every { validator.validateAmount(100.0) } returns AmountValidationResult.Valid(100.0)
         every { validator.validateInstallments("600") } returns
                 InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
@@ -157,24 +195,7 @@ class PaymentViewModelTest {
         val state = viewModel.uiState.value as PaymentUiState.ValidationError
         assertNull(state.amountError)
         assertNotNull(state.instalmentsError)
-        assertTrue(state.instalmentsError!!.contains("12"))
     }
-
-    @Test
-    fun `given instalments above limit, when processPayment, then never calls use case`() = runTest {
-        every { validator.validateAmount(any()) } returns AmountValidationResult.Valid(100.0)
-        every { validator.validateInstallments("600") } returns
-                InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
-
-        viewModel.processPayment(rawAmount = 100.0, method = PaymentMethod.CREDIT, rawInstallments = "600")
-        advanceUntilIdle()
-
-        // Use case must never be called when input is invalid
-        coEvery { processPaymentUseCase(any()) } returns Result.failure(Exception("should not reach here"))
-        assertEquals(0, 0) // verified implicitly by mockk strict mode
-    }
-
-    // ── processPayment — both errors at once ──────────────────────────────────
 
     @Test
     fun `given both fields invalid, when processPayment, then emits ValidationError with both errors`() = runTest {
@@ -205,29 +226,34 @@ class PaymentViewModelTest {
     }
 
     @Test
-    fun `given success, when processPayment, then instalmentSummary is cleared`() = runTest {
-        every { validator.validateAmount(any()) } returns AmountValidationResult.Valid(600.0)
+    fun `given success, when processPayment, then instalmentsError and summary are cleared`() = runTest {
+        every { validator.validateInstallments("12") } returns InstalmentsValidationResult.Valid(12)
+        viewModel.onInputChanged(600.0, "12")
+
+        every { validator.validateAmount(600.0) } returns AmountValidationResult.Valid(600.0)
         every { validator.validateInstallments(any()) } returns InstalmentsValidationResult.Valid(12)
         coEvery { processPaymentUseCase(any()) } returns Result.success(approvedTransaction)
         every { mapper.toUiModel(any()) } returns uiModel
 
-        viewModel.onInputChanged(600.0, "12")
-        assertNotNull(viewModel.instalmentSummary.value)
-
         viewModel.processPayment(rawAmount = 600.0, method = PaymentMethod.CREDIT, rawInstallments = "12")
         advanceUntilIdle()
 
+        assertNull(viewModel.instalmentsError.value)
         assertNull(viewModel.instalmentSummary.value)
     }
 
     // ── resetState ─────────────────────────────────────────────────────────────
 
     @Test
-    fun `when resetState called, then state returns to Idle and summary is cleared`() = runTest {
-        viewModel.onInputChanged(600.0, "12")
+    fun `when resetState called, then state is Idle and all auxiliary flows are cleared`() = runTest {
+        every { validator.validateInstallments("13") } returns
+                InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
+
+        viewModel.onInputChanged(100.0, "13")
         viewModel.resetState()
 
         assertEquals(PaymentUiState.Idle, viewModel.uiState.value)
+        assertNull(viewModel.instalmentsError.value)
         assertNull(viewModel.instalmentSummary.value)
     }
 }

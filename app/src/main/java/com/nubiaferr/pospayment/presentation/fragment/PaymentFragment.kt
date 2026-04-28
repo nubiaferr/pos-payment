@@ -44,6 +44,7 @@ class PaymentFragment : Fragment() {
         setupMoneyInput()
         observeUiState()
         observeInstalmentSummary()
+        observeInstalmentsError()
         setupClickListeners()
     }
 
@@ -55,15 +56,10 @@ class PaymentFragment : Fragment() {
             notifyInputChanged()
         }
         binding.etInstallments.doAfterTextChanged {
-            binding.tilInstallments.error = null
             notifyInputChanged()
         }
     }
 
-    /**
-     * Notifies the ViewModel on every keystroke so [instalmentSummary]
-     * stays up to date while the operator types.
-     */
     private fun notifyInputChanged() {
         viewModel.onInputChanged(
             rawAmount = moneyWatcher.rawAmount,
@@ -88,17 +84,27 @@ class PaymentFragment : Fragment() {
         }
     }
 
-    /**
-     * Shows the per-instalment value below the field in real time.
-     * e.g. "12x de R$ 50,00" — visible only when method is Credit and
-     * instalment count is greater than 1.
-     */
     private fun observeInstalmentSummary() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.instalmentSummary.collect { summary ->
                     binding.tvInstalmentSummary.isVisible = summary != null
                     binding.tvInstalmentSummary.text = summary
+                }
+            }
+        }
+    }
+
+    /**
+     * Observes inline instalment field errors in real time.
+     * Error appears as soon as the operator types a value above 12,
+     * and clears as soon as they correct it — without needing to tap Confirm.
+     */
+    private fun observeInstalmentsError() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.instalmentsError.collect { error ->
+                    binding.tilInstallments.error = error
                 }
             }
         }
@@ -172,7 +178,11 @@ class PaymentFragment : Fragment() {
 
     private fun showValidationError(state: PaymentUiState.ValidationError) {
         binding.tilAmount.error = state.amountError
-        binding.tilInstallments.error = state.instalmentsError
+        // instalmentsError already shown via observeInstalmentsError —
+        // only override here if submit found an error the keystroke observer missed
+        if (state.instalmentsError != null) {
+            binding.tilInstallments.error = state.instalmentsError
+        }
         binding.btnConfirm.isVisible = true
         binding.layoutLoading.isVisible = false
     }
