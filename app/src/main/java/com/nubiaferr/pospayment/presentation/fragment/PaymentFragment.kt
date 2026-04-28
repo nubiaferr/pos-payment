@@ -44,6 +44,7 @@ class PaymentFragment : Fragment() {
         observeUiState()
         observeSelectedMethod()
         observeConfirmEnabled()
+        observeAmountError()
         observeInstalmentInputVisible()
         observeInstalmentSummary()
         observeInstalmentsError()
@@ -54,7 +55,6 @@ class PaymentFragment : Fragment() {
         moneyWatcher = MoneyTextWatcher(binding.etAmount)
         binding.etAmount.addTextChangedListener(moneyWatcher)
         binding.etAmount.doAfterTextChanged {
-            binding.tilAmount.error = null
             notifyInputChanged()
         }
         binding.etInstallments.doAfterTextChanged {
@@ -115,6 +115,16 @@ class PaymentFragment : Fragment() {
                         binding.etInstallments.text?.clear()
                         binding.tvInstalmentSummary.isVisible = false
                     }
+                }
+            }
+        }
+    }
+
+    private fun observeAmountError() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.amountError.collect { error ->
+                    binding.tilAmount.error = error
                 }
             }
         }

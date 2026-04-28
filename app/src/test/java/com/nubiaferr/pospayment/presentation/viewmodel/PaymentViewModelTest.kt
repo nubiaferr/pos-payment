@@ -73,7 +73,7 @@ class PaymentViewModelTest {
         validator = mockk()
 
         // Default answers — individual tests override these when they need specific behaviour
-        every { validator.validateAmount(any()) } answers {
+        every { validator.validateAmount(any(), any()) } answers {
             val amount = firstArg<Double>()
             if (amount > 0.0) AmountValidationResult.Valid(amount)
             else AmountValidationResult.Invalid("O valor deve ser maior que zero")
@@ -190,7 +190,12 @@ class PaymentViewModelTest {
     @Test
     fun `given invalid amount, when processPayment, then emits ValidationError with amountError`() =
         runTest {
-            every { validator.validateAmount(0.0) } returns AmountValidationResult.Invalid("O valor deve ser maior que zero")
+            every {
+                validator.validateAmount(
+                    0.0,
+                    any()
+                )
+            } returns AmountValidationResult.Invalid("O valor deve ser maior que zero")
             viewModel.processPayment(rawAmount = 0.0, method = PaymentMethod.CREDIT)
 
             val state = viewModel.uiState.value as PaymentUiState.ValidationError
@@ -217,7 +222,12 @@ class PaymentViewModelTest {
     @Test
     fun `given both fields invalid, when processPayment, then emits ValidationError with both errors`() =
         runTest {
-            every { validator.validateAmount(0.0) } returns AmountValidationResult.Invalid("O valor deve ser maior que zero")
+            every {
+                validator.validateAmount(
+                    0.0,
+                    any()
+                )
+            } returns AmountValidationResult.Invalid("O valor deve ser maior que zero")
             every { validator.validateInstallments("600") } returns
                     InstalmentsValidationResult.Invalid("Máximo de 12 parcelas permitidas")
 
@@ -306,7 +316,12 @@ class PaymentViewModelTest {
     @Test
     fun `given method selected and zero amount, when onInputChanged, then isConfirmEnabled is false`() =
         runTest {
-            every { validator.validateAmount(0.0) } returns AmountValidationResult.Invalid("O valor deve ser maior que zero")
+            every {
+                validator.validateAmount(
+                    0.0,
+                    any()
+                )
+            } returns AmountValidationResult.Invalid("O valor deve ser maior que zero")
 
             viewModel.onMethodSelected(PaymentMethod.PIX, rawAmount = 0.0, rawInstalments = "")
 

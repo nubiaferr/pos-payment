@@ -1,24 +1,29 @@
 package com.nubiaferr.pospayment.domain.strategy
 
+import com.nubiaferr.pospayment.domain.exception.VoucherLimitExceededException
 import com.nubiaferr.pospayment.domain.model.Payment
 import com.nubiaferr.pospayment.domain.model.Transaction
 import com.nubiaferr.pospayment.domain.repository.PaymentRepository
 import javax.inject.Inject
 
 /**
- * Strategy for voucher payments (meal cards, food cards).
+ * Strategy for voucher payments (meal/food cards).
  *
- * Voucher payments follow the same flow as debit but are routed through a
- * separate acquirer network (e.g. VR, Alelo, Ticket). No additional business
- * rules are enforced at the domain level beyond what the acquirer validates.
- *
- * @property repository Data source for voucher payment processing.
+ * Business rule: single transaction cannot exceed R$ 1.000,00.
+ * Voucher networks typically enforce lower limits than card networks.
  */
 class VoucherPaymentStrategy @Inject constructor(
     private val repository: PaymentRepository
 ) : PaymentStrategy {
 
     override suspend fun execute(payment: Payment): Result<Transaction> {
+        if (payment.amount > VOUCHER_MAX_AMOUNT) {
+            return Result.failure(VoucherLimitExceededException(VOUCHER_MAX_AMOUNT))
+        }
         return repository.processPayment(payment)
+    }
+
+    companion object {
+        const val VOUCHER_MAX_AMOUNT = 1_000.0
     }
 }

@@ -9,10 +9,7 @@ import javax.inject.Inject
 /**
  * Strategy for Pix instant payments.
  *
- * Business rules enforced:
- * - A single Pix transaction cannot exceed R$50,000.00 (acquirer limit).
- *
- * @property repository Data source for Pix payment processing.
+ * Business rule: single transaction cannot exceed R$ 50.000,00.
  */
 class PixPaymentStrategy @Inject constructor(
     private val repository: PaymentRepository
@@ -26,7 +23,6 @@ class PixPaymentStrategy @Inject constructor(
     }
 
     companion object {
-        /** Maximum single-transaction amount allowed for Pix, in BRL. */
         const val PIX_MAX_AMOUNT = 50_000.0
     }
 }

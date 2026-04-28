@@ -1,5 +1,6 @@
 package com.nubiaferr.pospayment.domain.strategy
 
+import com.nubiaferr.pospayment.domain.exception.DebitLimitExceededException
 import com.nubiaferr.pospayment.domain.model.Payment
 import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import com.nubiaferr.pospayment.domain.model.Transaction
@@ -14,12 +15,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/**
- * Unit tests for [DebitPaymentStrategy].
- *
- * Debit has no extra business rules — verifies that every payment
- * is delegated directly to the repository and failures propagate correctly.
- */
 class DebitPaymentStrategyTest {
 
     private lateinit var repository: PaymentRepository
@@ -40,8 +35,8 @@ class DebitPaymentStrategyTest {
     }
 
     @Test
-    fun `given any valid amount, when executed, then delegates to repository`() = runTest {
-        val payment = Payment(amount = 50.0, method = PaymentMethod.DEBIT)
+    fun `given amount within limit, when executed, then delegates to repository`() = runTest {
+        val payment = Payment(amount = 500.0, method = PaymentMethod.DEBIT)
         coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
@@ -51,8 +46,8 @@ class DebitPaymentStrategyTest {
     }
 
     @Test
-    fun `given very small amount, when executed, then delegates without restriction`() = runTest {
-        val payment = Payment(amount = 0.01, method = PaymentMethod.DEBIT)
+    fun `given amount exactly at limit, when executed, then delegates to repository`() = runTest {
+        val payment = Payment(amount = DebitPaymentStrategy.DEBIT_MAX_AMOUNT, method = PaymentMethod.DEBIT)
         coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
@@ -61,8 +56,27 @@ class DebitPaymentStrategyTest {
     }
 
     @Test
-    fun `given large amount, when executed, then delegates without restriction`() = runTest {
-        val payment = Payment(amount = 999_999.0, method = PaymentMethod.DEBIT)
+    fun `given amount one cent above limit, when executed, then returns DebitLimitExceededException`() = runTest {
+        val payment = Payment(amount = DebitPaymentStrategy.DEBIT_MAX_AMOUNT + 0.01, method = PaymentMethod.DEBIT)
+
+        val result = strategy.execute(payment)
+
+        assertTrue(result.exceptionOrNull() is DebitLimitExceededException)
+        coVerify(exactly = 0) { repository.processPayment(any()) }
+    }
+
+    @Test
+    fun `given amount largely exceeding limit, when executed, then returns DebitLimitExceededException`() = runTest {
+        val payment = Payment(amount = 99_999.0, method = PaymentMethod.DEBIT)
+
+        val result = strategy.execute(payment)
+
+        assertTrue(result.exceptionOrNull() is DebitLimitExceededException)
+    }
+
+    @Test
+    fun `given very small amount, when executed, then delegates without restriction`() = runTest {
+        val payment = Payment(amount = 0.01, method = PaymentMethod.DEBIT)
         coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
 
         val result = strategy.execute(payment)
@@ -77,7 +91,16 @@ class DebitPaymentStrategyTest {
 
         val result = strategy.execute(payment)
 
-        assertTrue(result.isFailure)
         assertEquals("Card declined", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `given any payment, when executed, then never calls any other repository method`() = runTest {
+        val payment = Payment(amount = 50.0, method = PaymentMethod.DEBIT)
+        coEvery { repository.processPayment(payment) } returns Result.success(approvedTransaction)
+
+        strategy.execute(payment)
+
+        coVerify(exactly = 1) { repository.processPayment(payment) }
     }
 }

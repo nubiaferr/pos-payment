@@ -53,6 +53,14 @@ class PaymentViewModel @Inject constructor(
     val instalmentsError: StateFlow<String?> = _instalmentsError.asStateFlow()
 
     /**
+     * Inline error for the amount field, updated on every keystroke.
+     * Used to show per-method limit errors (e.g. Pix, Débito, Voucher) in real time.
+     * Null when the amount is valid for the current method.
+     */
+    private val _amountError = MutableStateFlow<String?>(null)
+    val amountError: StateFlow<String?> = _amountError.asStateFlow()
+
+    /**
      * Controls the instalment input field visibility when Credit is selected.
      *
      * - `true`  → amount >= R$ 10,00: show input, hide the minimum notice
@@ -114,6 +122,17 @@ class PaymentViewModel @Inject constructor(
             return
         }
 
+        // Validate per-method amount limit (e.g. Pix R$ 50k, Débito R$ 10k, Voucher R$ 1k)
+        val amountResult = validator.validateAmount(rawAmount, _selectedMethod.value)
+        if (amountResult is AmountValidationResult.Invalid) {
+            _amountError.value = amountResult.message
+            _instalmentsError.value = null
+            _instalmentSummary.value = null
+            _isConfirmEnabled.value = false
+            return
+        }
+        _amountError.value = null
+
         val instalmentsResult = validator.validateInstallments(rawInstalments)
         when (instalmentsResult) {
             is InstalmentsValidationResult.Invalid -> {
@@ -149,7 +168,7 @@ class PaymentViewModel @Inject constructor(
     ): Boolean {
         if (_selectedMethod.value == null) return false
         if (instalmentsError != null) return false
-        return validator.validateAmount(rawAmount) is AmountValidationResult.Valid
+        return validator.validateAmount(rawAmount, _selectedMethod.value) is AmountValidationResult.Valid
     }
 
     /**
@@ -163,7 +182,7 @@ class PaymentViewModel @Inject constructor(
         rawInstallments: String = "",
         description: String = ""
     ) {
-        val amountResult = validator.validateAmount(rawAmount)
+        val amountResult = validator.validateAmount(rawAmount, method)
         val instalmentsResult = validator.validateInstallments(rawInstallments)
 
         val amountError = (amountResult as? AmountValidationResult.Invalid)?.message
@@ -242,6 +261,7 @@ class PaymentViewModel @Inject constructor(
         _selectedMethod.value = null
         _instalmentSummary.value = null
         _instalmentsError.value = null
+        _amountError.value = null
         _instalmentInputVisible.value = false
         _isConfirmEnabled.value = false
         _uiState.value = PaymentUiState.Idle

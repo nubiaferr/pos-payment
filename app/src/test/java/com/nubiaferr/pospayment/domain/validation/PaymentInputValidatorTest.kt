@@ -1,5 +1,6 @@
 package com.nubiaferr.pospayment.domain.validation
 
+import com.nubiaferr.pospayment.domain.model.PaymentMethod
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -92,8 +93,58 @@ class PaymentInputValidatorTest {
 
     @Test
     fun `given count above maximum, when validateInstallments, then does NOT silently clamp`() {
-        // Previously the validator would clamp 600 → 12 silently.
-        // Now it must return Invalid so the operator sees an explicit error.
         assertTrue(validator.validateInstallments("600") is InstalmentsValidationResult.Invalid)
+    }
+
+// ── validateAmount — per-method limits ────────────────────────────────────
+
+    @Test
+    fun `given pix amount above limit, when validateAmount with PIX, then returns Invalid`() {
+        val result = validator.validateAmount(50_000.01, PaymentMethod.PIX)
+        assertTrue(result is AmountValidationResult.Invalid)
+    }
+
+    @Test
+    fun `given pix amount exactly at limit, when validateAmount with PIX, then returns Valid`() {
+        val result = validator.validateAmount(50_000.0, PaymentMethod.PIX)
+        assertTrue(result is AmountValidationResult.Valid)
+    }
+
+    @Test
+    fun `given debit amount above limit, when validateAmount with DEBIT, then returns Invalid`() {
+        val result = validator.validateAmount(10_000.01, PaymentMethod.DEBIT)
+        assertTrue(result is AmountValidationResult.Invalid)
+        assertTrue((result as AmountValidationResult.Invalid).message.contains("Débito"))
+    }
+
+    @Test
+    fun `given debit amount exactly at limit, when validateAmount with DEBIT, then returns Valid`() {
+        val result = validator.validateAmount(10_000.0, PaymentMethod.DEBIT)
+        assertTrue(result is AmountValidationResult.Valid)
+    }
+
+    @Test
+    fun `given voucher amount above limit, when validateAmount with VOUCHER, then returns Invalid`() {
+        val result = validator.validateAmount(1_000.01, PaymentMethod.VOUCHER)
+        assertTrue(result is AmountValidationResult.Invalid)
+        assertTrue((result as AmountValidationResult.Invalid).message.contains("Voucher"))
+    }
+
+    @Test
+    fun `given voucher amount exactly at limit, when validateAmount with VOUCHER, then returns Valid`() {
+        val result = validator.validateAmount(1_000.0, PaymentMethod.VOUCHER)
+        assertTrue(result is AmountValidationResult.Valid)
+    }
+
+    @Test
+    fun `given credit amount above global max, when validateAmount with CREDIT, then returns Invalid`() {
+        val result = validator.validateAmount(100_000.0, PaymentMethod.CREDIT)
+        assertTrue(result is AmountValidationResult.Invalid)
+    }
+
+    @Test
+    fun `given no method, when validateAmount with valid amount, then returns Valid`() {
+        val result = validator.validateAmount(100.0, null)
+        assertTrue(result is AmountValidationResult.Valid)
     }
 }
